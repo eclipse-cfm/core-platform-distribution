@@ -39,6 +39,11 @@ jobs:
         with:
           version: v3.16.3
 
+      - name: Add Helm repositories
+        run: |
+          helm repo add hashicorp https://helm.releases.hashicorp.com
+          helm repo add nats https://nats-io.github.io/k8s/helm/charts/
+
       - name: Build chart dependencies
         run: helm dependency build .
 
@@ -74,6 +79,11 @@ jobs:
             helm registry login "${REGISTRY}" \
               --username "${{ github.actor }}" \
               --password-stdin
+
+      - name: Add Helm repositories
+        run: |
+          helm repo add hashicorp https://helm.releases.hashicorp.com
+          helm repo add nats https://nats-io.github.io/k8s/helm/charts/
 
       - name: Build chart dependencies
         run: helm dependency build .
