@@ -72,7 +72,7 @@ SPDX-License-Identifier: Apache-2.0
 {{- if or (contains "." $first) (contains ":" $first) -}}
 {{- printf "%s:%s" $repo $tag -}}
 {{- else -}}
-{{- printf "%s/%s:%s" .ctx.Values.global.imageRegistry $repo $tag -}}
+{{- printf "%s/%s:%s" .ctx.Values.imageRegistry $repo $tag -}}
 {{- end -}}
 {{- end -}}
 

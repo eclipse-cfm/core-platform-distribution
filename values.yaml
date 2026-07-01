@@ -11,6 +11,12 @@
 #      Metaform Systems, Inc. - initial API and implementation
 #
 
+# Default registry prepended to first-party component images whose `repo` has no
+# host. Kept OUTSIDE `global` on purpose: Bitnami sub-charts honor `global.imageRegistry`
+# (and it takes precedence over their own `image.registry`), which would rewrite the
+# postgres image to a registry that doesn't host it. Per-sub-chart images are pinned below.
+imageRegistry: ghcr.io
+
 # =============================================================================
 # Global settings shared across every component and sub-chart.
 # =============================================================================
@@ -20,7 +26,6 @@ global:
   namespace: edc-v
   createNamespace: false
 
-  imageRegistry: ghcr.io
   imagePullPolicy: Always
   clusterDomain: svc.cluster.local
 
@@ -73,6 +78,12 @@ postgresql:
     - { db: sigletdb,      user: siglet, password: siglet }
     - { db: jwtlet,        user: jwtlet, password: jwtlet }
   # Values passed straight to the bitnami postgresql sub-chart.
+  # Bitnami relocated its free Docker Hub images: current tags now live under the
+  # paid "bitnamisecure" org, and the previously-public ones were frozen under
+  # "bitnamilegacy". Pin to bitnamilegacy so the image resolves without a subscription.
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/postgresql
   auth:
     postgresPassword: postgres
     database: postgres
