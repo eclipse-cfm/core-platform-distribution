@@ -22,6 +22,8 @@ spec:
         platform: edcv
         type: edcv-app
     spec:
+      initContainers:
+        {{- include "cpd.waitForPostgres" (dict "db" "cfm" "user" "cfm" "password" "cfm" "ctx" $) | nindent 8 }}
       containers:
         - name: tenant-manager
           image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}

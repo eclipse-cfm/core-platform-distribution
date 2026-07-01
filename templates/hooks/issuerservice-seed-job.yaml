@@ -31,6 +31,7 @@ metadata:
     "helm.sh/hook-delete-policy": {{ .Values.seedJobs.hookDeletePolicy | quote }}
 spec:
   backoffLimit: 5
+  ttlSecondsAfterFinished: {{ .Values.seedJobs.ttlSecondsAfterFinished }}
   template:
     metadata:
       labels:

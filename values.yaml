@@ -295,10 +295,21 @@ cfm:
     resources: {}
 
 # =============================================================================
-# Seed / bootstrap jobs (rendered as Helm hooks with weight ordering).
+# Seed jobs run as Helm post-install/post-upgrade hooks; the infra bootstrap jobs
+# (postgres/nats/vault) are plain, release-owned Jobs (see templates/hooks/).
 # =============================================================================
 seedJobs:
-  hookDeletePolicy: before-hook-creation
+  # Delete-policy for the seed-job HOOKS. Hook resources are NOT tracked by the
+  # release, so without `hook-succeeded` they would linger after `helm uninstall`.
+  #   before-hook-creation : remove a prior run before re-running (idempotent upgrades)
+  #   hook-succeeded       : remove after a successful run (so nothing survives uninstall)
+  # Failed hooks are intentionally kept (no `hook-failed`) so their logs can be inspected.
+  hookDeletePolicy: before-hook-creation,hook-succeeded
+  # Kubernetes-native garbage collection for the seed Jobs, independent of Helm's hook
+  # lifecycle. Guarantees finished seed jobs are removed even when a helm install/upgrade
+  # is interrupted or times out before it can run the hook-succeeded cleanup. Also long
+  # enough (default 10m) to inspect a failed job's logs before the cluster reaps it.
+  ttlSecondsAfterFinished: 600
   # Images used by the hook jobs.
   images:
     postgres: postgres:17.7-alpine

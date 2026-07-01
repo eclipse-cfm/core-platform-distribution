@@ -114,6 +114,28 @@ platform: edcv
 {{- end -}}
 
 {{/* -------------------------------------------------------------------------
+     initContainer that blocks until the given Postgres database is connectable
+     with the given credentials. Because it authenticates against the specific
+     database, a success also proves the postgres-init Job has created that
+     database/role. The CFM (Go) components create their tables once at startup
+     and do NOT retry, so they must not start before the DB is ready.
+     Usage: {{ include "cpd.waitForPostgres" (dict "db" "cfm" "user" "cfm" "password" "cfm" "ctx" $) | nindent 8 }}
+     ------------------------------------------------------------------------- */}}
+{{- define "cpd.waitForPostgres" -}}
+- name: wait-for-postgres
+  image: {{ .ctx.Values.seedJobs.images.postgres }}
+  command:
+    - sh
+    - -c
+    - |
+      until PGPASSWORD='{{ .password }}' psql -h '{{ include "cpd.pgHost" .ctx }}' -p '{{ .ctx.Values.postgresql.connection.port }}' -U '{{ .user }}' -d '{{ .db }}' -c 'SELECT 1' >/dev/null 2>&1; do
+        echo "Waiting for Postgres database '{{ .db }}' to be ready..."
+        sleep 2
+      done
+      echo "Postgres database '{{ .db }}' is ready"
+{{- end -}}
+
+{{/* -------------------------------------------------------------------------
      envFrom for a standard app: its own config ConfigMap + telemetry-config.
      Usage: {{ include "cpd.appEnvFrom" (dict "config" "controlplane-config" "ctx" $) | nindent 12 }}
      ------------------------------------------------------------------------- */}}

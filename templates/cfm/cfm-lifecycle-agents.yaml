@@ -23,6 +23,8 @@ spec:
         type: edcv-app
     spec:
       serviceAccountName: cfm-agents
+      initContainers:
+        {{- include "cpd.waitForPostgres" (dict "db" "cfm" "user" "cfm" "password" "cfm" "ctx" $) | nindent 8 }}
       containers:
         - name: keymanagement-agent
           image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
