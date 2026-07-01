@@ -81,7 +81,7 @@ spec:
       containers:
         - name: siglet
           image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
-          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
           ports:
             - name: http
               containerPort: 8080

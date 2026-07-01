@@ -31,7 +31,7 @@ spec:
         # "vault access" client for the old Vault JWT auth; Vault auth now uses token exchange (jwtlet).
         - name: jwtlet-agent
           image: {{ include "cpd.image" (dict "img" $c.containers.jwtletAgent.image "ctx" $) }}
-          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
           command: [ "/jwtletagent" ]
           args:
               - "--mode=debug"
@@ -45,7 +45,7 @@ spec:
                 name: telemetry-config
         - name: edcv-agent
           image: {{ include "cpd.image" (dict "img" $c.containers.edcvAgent.image "ctx" $) }}
-          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
           command: [ "/edcvagent" ]
           args: [
             "--mode=debug"
@@ -60,7 +60,7 @@ spec:
             {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
         - name: ih-agent
           image: {{ include "cpd.image" (dict "img" $c.containers.ihAgent.image "ctx" $) }}
-          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
           command: [ "/ihagent" ]
           args: [
             "--mode=debug"
@@ -75,7 +75,7 @@ spec:
             {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
         - name: registration-agent
           image: {{ include "cpd.image" (dict "img" $c.containers.registrationAgent.image "ctx" $) }}
-          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
           command: [ "/regagent" ]
           args: [
             "--mode=debug"
@@ -90,7 +90,7 @@ spec:
             {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
         - name: onboarding-agent
           image: {{ include "cpd.image" (dict "img" $c.containers.onboardingAgent.image "ctx" $) }}
-          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
           command: [ "/obagent" ]
           args: [
             "--mode=debug"

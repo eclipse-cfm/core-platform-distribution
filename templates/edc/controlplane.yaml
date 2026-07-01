@@ -27,7 +27,7 @@ spec:
       containers:
         - name: controlplane
           image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
-          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
           envFrom:
             {{- include "cpd.appEnvFrom" (dict "config" "controlplane-config" "ctx" $) | nindent 12 }}
           env:

@@ -89,7 +89,7 @@ spec:
       containers:
       - name: jwtlet
         image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
-        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
         ports:
         - containerPort: 8080
           name: token-exchange

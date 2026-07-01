@@ -28,7 +28,7 @@ spec:
       containers:
         - name: keymanagement-agent
           image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
-          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
           command: [ "/keymanagementagent" ]
           args:
               - "--mode=debug"

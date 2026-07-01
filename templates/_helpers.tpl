@@ -77,6 +77,15 @@ SPDX-License-Identifier: Apache-2.0
 {{- end -}}
 
 {{/* -------------------------------------------------------------------------
+     Effective imagePullPolicy: the per-component override when set, otherwise
+     the global default.
+     Usage: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
+     ------------------------------------------------------------------------- */}}
+{{- define "cpd.pullPolicy" -}}
+{{- .policy | default .ctx.Values.global.imagePullPolicy -}}
+{{- end -}}
+
+{{/* -------------------------------------------------------------------------
      Labels
      ------------------------------------------------------------------------- */}}
 {{- define "cpd.labels" -}}

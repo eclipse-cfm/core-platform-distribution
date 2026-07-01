@@ -27,7 +27,7 @@ spec:
       containers:
         - name: provision-manager
           image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
-          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
           command: [ "/pmanager" ]
           args: [
             "--mode=debug"

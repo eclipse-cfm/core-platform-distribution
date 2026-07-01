@@ -26,6 +26,9 @@ global:
   namespace: edc-v
   createNamespace: false
 
+  # Default imagePullPolicy for the first-party components. Each component below can
+  # override it with its own `imagePullPolicy` (e.g. set the locally-built images to
+  # Never/IfNotPresent on KinD while the rest keep pulling Always).
   imagePullPolicy: Always
   clusterDomain: svc.cluster.local
 
@@ -182,6 +185,8 @@ security:
       repo: eclipse-cfm/clearglass
       tag: latest
     replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
     resources: {}
   jwtlet:
     enabled: true
@@ -190,6 +195,8 @@ security:
       tag: latest
     vaultAgentImage: hashicorp/vault:latest
     replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
     resources: {}
   # Traefik forward-auth middlewares. Each generates a Middleware named `jwt-auth-<name>`
   # whose forwardAuth address is clearglass /validate with one `scope=` query param per entry.
@@ -217,6 +224,8 @@ edc:
       repo: eclipse-dataspace-hub/jad/controlplane
       tag: latest
     replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
     resources: {}
   dataplane:
     enabled: true
@@ -224,6 +233,8 @@ edc:
       repo: eclipse-dataspace-hub/jad/dataplane
       tag: latest
     replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
     resources: {}
   identityhub:
     enabled: true
@@ -232,6 +243,8 @@ edc:
       repo: eclipse-dataspace-hub/jad/identity-hub
       tag: latest
     replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
     resources: {}
   issuerservice:
     enabled: true
@@ -239,6 +252,8 @@ edc:
       repo: eclipse-dataspace-hub/jad/issuerservice
       tag: latest
     replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
     resources: {}
   siglet:
     enabled: true
@@ -247,6 +262,8 @@ edc:
       tag: latest
     vaultAgentImage: hashicorp/vault:latest
     replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
     resources: {}
 
 # =============================================================================
@@ -268,6 +285,8 @@ cfm:
       onboardingAgent:
         image: { repo: eclipse-cfm/cfm/obagent, tag: latest }
     replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
     resources: {}
   lifecycleAgents:
     # keymanagement agent
@@ -276,6 +295,8 @@ cfm:
       repo: eclipse-cfm/cfm/keymanagementagent
       tag: latest
     replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
     resources: {}
   provisionManager:
     enabled: true
@@ -284,6 +305,8 @@ cfm:
       repo: eclipse-cfm/cfm/pmanager
       tag: latest
     replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
     resources: {}
   tenantManager:
     enabled: true
@@ -292,6 +315,8 @@ cfm:
       repo: eclipse-cfm/cfm/tmanager
       tag: latest
     replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
     resources: {}
 
 # =============================================================================
