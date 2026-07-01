@@ -145,57 +145,12 @@ spec:
               CELL_ID=$(printf '%s\n' "$RESP_BODY" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
               echo "✓ Cell created with ID: $CELL_ID"
 
-              # Create Dataspace Profile
-              echo "Creating Dataspace Profile..."
-              do_curl -X POST "$TM_BASE_URL/api/v1alpha1/dataspace-profiles" \
-                -H "Authorization: Bearer ${EXCHANGED_TOKEN}" \
-                -H "Content-Type: application/json" \
-                -d '{
-                  "artifacts": [],
-                  "properties": {},
-                  "dataspaceSpec": {
-                     "protocolStack": ["dsp-2025-1", "dcp-2025-1"],
-                     "credentialSpecs": [{
-                        "type": "MembershipCredential",
-                        "issuer": "{{ include "cpd.issuerDid" . }}",
-                        "format": "vc20-bssl/jwt",
-                        "id": "membership-credential-def"
-                      },
-                      {
-                        "type": "ManufacturerCredential",
-                        "issuer": "{{ include "cpd.issuerDid" . }}",
-                        "format": "vc20-bssl/jwt",
-                        "id": "manufacturer-credential-def",
-                        "role": "manufacturer"
-                      }
-                    ]
-                  }
-                }'
-              if [ "$RESP_STATUS" -ge 400 ]; then
-                echo "ERROR: Failed to create Dataspace Profile (HTTP $RESP_STATUS): $RESP_BODY"
-                exit 1
-              fi
+              # NOTE: the Dataspace Profile (credential specs) and its deployment onto this
+              # cell are dataspace-specific and are seeded by a separate dataspace chart
+              # (see DataspaceProfile/), which discovers this cell via GET /cells.
 
-              DATASPACE_PROFILE_ID=$(printf '%s\n' "$RESP_BODY" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-              echo "✓ Dataspace Profile created with ID: $DATASPACE_PROFILE_ID"
-
-              # Deploy Dataspace Profile
-              echo "Deploying Dataspace Profile..."
-              do_curl -X POST "$TM_BASE_URL/api/v1alpha1/dataspace-profiles/$DATASPACE_PROFILE_ID/deployments" \
-                -H "Authorization: Bearer ${EXCHANGED_TOKEN}" \
-                -H "Content-Type: application/json" \
-                -d '{
-                  "profileId": "'"$DATASPACE_PROFILE_ID"'",
-                  "cellId": "'"$CELL_ID"'"
-                }'
-              if [ "$RESP_STATUS" -ge 400 ]; then
-                echo "ERROR: Failed to deploy Dataspace Profile (HTTP $RESP_STATUS): $RESP_BODY"
-                exit 1
-              fi
-
-              echo "✓ Dataspace Profile deployed successfully"
               echo "================================================"
-              echo "TenantManager Seeding Complete"
+              echo "TenantManager (platform) seeding complete"
               echo "================================================"
       volumes:
         # RFC 8693 subject_token exchanged at jwtlet's /token endpoint for a
