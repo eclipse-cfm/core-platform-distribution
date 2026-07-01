@@ -52,7 +52,7 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - name: Checkout
@@ -89,3 +89,17 @@ jobs:
         run: |
           helm push "${{ steps.package.outputs.path }}" \
             "oci://${REGISTRY}/${{ steps.repo.outputs.owner }}/charts"
+
+      # only tag pushes carry a version to release; manual runs skip this
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.package.outputs.path }}
+          generate_release_notes: true
+          body: |
+            Helm chart published to GHCR:
+
+            ```
+            helm pull oci://${{ env.REGISTRY }}/${{ steps.repo.outputs.owner }}/charts/core-platform-distribution --version ${{ github.ref_name }}
+            ```
