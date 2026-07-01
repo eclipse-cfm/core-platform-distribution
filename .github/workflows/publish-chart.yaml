@@ -91,7 +91,15 @@ jobs:
       - name: Package chart
         id: package
         run: |
-          helm package . --destination dist
+          # On tag pushes, override the chart version/appVersion with the tag
+          # (strip a leading "v"); manual runs fall back to Chart.yaml.
+          version_args=()
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            version_args=(--version "${version}" --app-version "${version}")
+            echo "version=${version}" >> "$GITHUB_OUTPUT"
+          fi
+          helm package . --destination dist "${version_args[@]}"
           pkg=$(ls dist/*.tgz | head -n1)
           echo "path=${pkg}" >> "$GITHUB_OUTPUT"
 
@@ -111,5 +119,5 @@ jobs:
             Helm chart published to GHCR:
 
             ```
-            helm pull oci://${{ env.REGISTRY }}/${{ steps.repo.outputs.owner }}/charts/core-platform-distribution --version ${{ github.ref_name }}
+            helm pull oci://${{ env.REGISTRY }}/${{ steps.repo.outputs.owner }}/charts/core-platform-distribution --version ${{ steps.package.outputs.version }}
             ```
