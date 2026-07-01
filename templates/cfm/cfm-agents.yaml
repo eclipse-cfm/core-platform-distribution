@@ -1,0 +1,124 @@
+{{- if .Values.cfm.agents.enabled }}
+{{- $c := .Values.cfm.agents }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cfm-agents
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    app: cfm-agents
+    platform: edcv
+    type: edcv-app
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $c.replicas }}
+  selector:
+    matchLabels:
+      app: cfm-agents
+  template:
+    metadata:
+      labels:
+        app: cfm-agents
+        platform: edcv
+        type: edcv-app
+    spec:
+      serviceAccountName: cfm-agents
+      initContainers:
+        {{- include "cpd.waitForPostgres" (dict "db" "cfm" "user" "cfm" "password" "cfm" "ctx" $) | nindent 8 }}
+      containers:
+        # NOTE: the keycloak-agent has been retired. It only provisioned a per-participant Keycloak
+        # "vault access" client for the old Vault JWT auth; Vault auth now uses token exchange (jwtlet).
+        - name: jwtlet-agent
+          image: {{ include "cpd.image" (dict "img" $c.containers.jwtletAgent.image "ctx" $) }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
+          command: [ "/jwtletagent" ]
+          args:
+              - "--mode=debug"
+          volumeMounts:
+              {{- include "cpd.jwtletSubjectTokenMount" . | nindent 14 }}
+              - name: jwtlet-agent-config
+                mountPath: /etc/appname
+                readOnly: true
+          envFrom:
+            - configMapRef:
+                name: telemetry-config
+        - name: edcv-agent
+          image: {{ include "cpd.image" (dict "img" $c.containers.edcvAgent.image "ctx" $) }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
+          command: [ "/edcvagent" ]
+          args: [
+            "--mode=debug"
+          ]
+          envFrom:
+            - configMapRef:
+                name: telemetry-config
+          volumeMounts:
+            - name: edcv-agent-config
+              mountPath: /etc/appname
+              readOnly: true
+            {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+        - name: ih-agent
+          image: {{ include "cpd.image" (dict "img" $c.containers.ihAgent.image "ctx" $) }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
+          command: [ "/ihagent" ]
+          args: [
+            "--mode=debug"
+          ]
+          envFrom:
+            - configMapRef:
+                name: telemetry-config
+          volumeMounts:
+            - name: ih-agent-config
+              mountPath: /etc/appname
+              readOnly: true
+            {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+        - name: registration-agent
+          image: {{ include "cpd.image" (dict "img" $c.containers.registrationAgent.image "ctx" $) }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
+          command: [ "/regagent" ]
+          args: [
+            "--mode=debug"
+          ]
+          envFrom:
+            - configMapRef:
+                name: telemetry-config
+          volumeMounts:
+            - name: registration-agent-config
+              mountPath: /etc/appname
+              readOnly: true
+            {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+        - name: onboarding-agent
+          image: {{ include "cpd.image" (dict "img" $c.containers.onboardingAgent.image "ctx" $) }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
+          command: [ "/obagent" ]
+          args: [
+            "--mode=debug"
+          ]
+          envFrom:
+            - configMapRef:
+                name: telemetry-config
+          volumeMounts:
+            - name: onboarding-agent-config
+              mountPath: /etc/appname
+              readOnly: true
+            {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+      volumes:
+        {{- include "cpd.jwtletSubjectTokenVolume" . | nindent 8 }}
+        - name: edcv-agent-config
+          configMap:
+            name: edcv-agent-config
+        - name: ih-agent-config
+          configMap:
+            name: ih-agent-config
+        - name: registration-agent-config
+          configMap:
+            name: reg-agent-config
+        - name: onboarding-agent-config
+          configMap:
+            name: ob-agent-config
+        - name: jwtlet-agent-config
+          configMap:
+            name: jwtlet-agent-config
+      restartPolicy: Always
+{{- end }}

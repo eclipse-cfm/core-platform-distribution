@@ -1,0 +1,41 @@
+#
+# Copyright (c) 2025 Metaform Systems, Inc.
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#      Metaform Systems, Inc. - initial API and implementation
+#
+
+apiVersion: v2
+name: core-platform-distribution
+description: |
+  Eclipse Dataspace Hub (JAD) Core Platform Distribution — deploys the EDC connector
+  components (control plane, data plane, identity hub, issuer service, siglet), the CFM
+  agents and managers, and the security/gateway layer (jwtlet, clearglass, Traefik gateway).
+  Postgres, Vault and NATS are pulled in as community sub-charts.
+type: application
+version: 0.1.0
+appVersion: "latest"
+
+dependencies:
+  # --- infrastructure (enabled by default) ---------------------------------
+  - name: postgresql
+    version: "16.7.27"
+    repository: oci://registry-1.docker.io/bitnamicharts
+    condition: postgresql.enabled
+  - name: vault
+    version: "0.29.1"
+    repository: https://helm.releases.hashicorp.com
+    condition: vault.enabled
+  - name: nats
+    version: "1.3.16"
+    repository: https://nats-io.github.io/k8s/helm/charts/
+    condition: nats.enabled
+  # NOTE: the observability stack (jaeger/prometheus/loki/grafana) is deployed as
+  # in-chart templates under templates/telemetry/, not as community sub-charts —
+  # their Service names must match the telemetry-config OTLP endpoints.

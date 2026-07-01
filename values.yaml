@@ -1,0 +1,355 @@
+#
+# Copyright (c) 2025 Metaform Systems, Inc.
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#      Metaform Systems, Inc. - initial API and implementation
+#
+
+# Default registry prepended to first-party component images whose `repo` has no
+# host. Kept OUTSIDE `global` on purpose: Bitnami sub-charts honor `global.imageRegistry`
+# (and it takes precedence over their own `image.registry`), which would rewrite the
+# postgres image to a registry that doesn't host it. Per-sub-chart images are pinned below.
+imageRegistry: ghcr.io
+
+# =============================================================================
+# Global settings shared across every component and sub-chart.
+# =============================================================================
+global:
+  # Target namespace. Also used as the DNS namespace segment in in-cluster FQDNs.
+  # Leave `createNamespace: false` and use `helm install --namespace <ns> --create-namespace`.
+  namespace: edc-v
+  createNamespace: false
+
+  # Default imagePullPolicy for the first-party components. Each component below can
+  # override it with its own `imagePullPolicy` (e.g. set the locally-built images to
+  # Never/IfNotPresent on KinD while the rest keep pulling Always).
+  imagePullPolicy: Always
+  clusterDomain: svc.cluster.local
+
+  # Acknowledge the Bitnami sub-charts' image guard (they ship "Bitnami Secure Images"
+  # by default and refuse to render otherwise). Dev-only; revisit for production images.
+  security:
+    allowInsecureImages: true
+
+  # HTTPRoute hostname all application routes are exposed under.
+  host: jad.localhost
+  gatewayName: edcv-gateway
+  gatewayClassName: traefik
+
+  # RFC 8693 subject-token wiring. The audience must match jwtlet's `client_audience`
+  # (the Kubernetes cluster issuer).
+  jwtSubjectTokenAudience: https://kubernetes.default.svc.cluster.local
+  jwtSubjectTokenExpirationSeconds: 3600
+  # jwtlet participant-token audience (client_audience / bound_audiences).
+  tokenExchangeAudience: edcv
+
+  # Emit JAVA_TOOL_OPTIONS with a JDWP agent (port 1044) for the JVM-based EDC apps.
+  # Dev-only convenience — disable for production images.
+  debug:
+    enabled: true
+
+# =============================================================================
+# Infrastructure sub-charts.
+# Each `connection.host: ""` means "derive <release>-<subchart>.<ns>.svc.<clusterDomain>".
+# The community services are NOT named postgres/vault/nats, so every consumer must
+# resolve the host through the connection helpers, never a hardcoded name.
+# =============================================================================
+postgresql:
+  enabled: true
+  connection:
+    host: ""
+    port: 5432
+    # Admin credentials used by the postgres-init hook to create the per-app DBs/users.
+    adminUser: postgres
+    # Secret (created by the bitnami sub-chart) holding the admin password.
+    adminPasswordSecret:
+      name: ""            # "" => "<release>-postgresql"
+      key: postgres-password
+  # Per-application databases/users created by the postgres-init hook.
+  databases:
+    - { db: controlplane,  user: cp,     password: cp }
+    - { db: identityhub,   user: ih,     password: ih }
+    - { db: issuerservice, user: issuer, password: issuer }
+    - { db: dataplane,     user: dp,     password: dp }
+    - { db: cfm,           user: cfm,    password: cfm }
+    - { db: sigletdb,      user: siglet, password: siglet }
+    - { db: jwtlet,        user: jwtlet, password: jwtlet }
+  # Values passed straight to the bitnami postgresql sub-chart.
+  # Bitnami relocated its free Docker Hub images: current tags now live under the
+  # paid "bitnamisecure" org, and the previously-public ones were frozen under
+  # "bitnamilegacy". Pin to bitnamilegacy so the image resolves without a subscription.
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/postgresql
+  auth:
+    postgresPassword: postgres
+    database: postgres
+  primary:
+    persistence:
+      enabled: false
+
+vault:
+  enabled: true
+  connection:
+    host: ""
+    port: 8200
+    scheme: http
+    rootToken: root       # dev only
+  # Values passed to the hashicorp vault sub-chart (dev mode == bespoke behaviour).
+  server:
+    dev:
+      enabled: true
+      devRootToken: root
+  injector:
+    enabled: false
+
+nats:
+  enabled: true
+  connection:
+    host: ""
+    port: 4222
+    monitorPort: 8222
+  # Streams created by the nats-bootstrap hook.
+  streams:
+    - name: edc-events
+      subjects: "events.>"
+      storage: memory
+      retention: interest
+  # Values passed to the nats sub-chart.
+  config:
+    jetstream:
+      enabled: true
+      memoryStore:
+        enabled: true
+
+# =============================================================================
+# Telemetry (observability stack). Deployed as in-chart templates (self-contained
+# single-replica Deployments) named exactly as the telemetry-config endpoints below
+# expect: jaeger / prometheus / loki / grafana. This keeps the OTLP wiring simple and
+# matches the config; swap for the upstream community charts later if desired.
+# =============================================================================
+telemetry:
+  # The telemetry-config ConfigMap is envFrom'd by nearly every app; keep it on even
+  # if you disable the backends (exports will just no-op/fail softly).
+  configMapEnabled: true
+  imagePullPolicy: IfNotPresent
+  # Endpoints baked into the telemetry-config ConfigMap. The service names are the
+  # in-cluster Service names; hosts are rendered through cpd.fqdn at template time.
+  endpoints:
+    tracesService: jaeger
+    tracesPort: 4318
+    metricsService: prometheus
+    metricsPort: 9090
+    metricsPath: /api/v1/otlp/v1/metrics
+    logsService: loki
+    logsPort: 3100
+    logsPath: /otlp/v1/logs
+  propagators: "tracecontext,baggage"
+
+  jaeger:
+    enabled: true
+    image: jaegertracing/all-in-one:1.62.0  # 1.62.0: latest has UI theming issues
+    host: jaeger.localhost
+  prometheus:
+    enabled: true
+    image: prom/prometheus:v3.2.1
+    host: prometheus.localhost
+  loki:
+    enabled: true
+    image: grafana/loki:3.4.2
+    host: loki.localhost
+  grafana:
+    enabled: true
+    image: grafana/grafana:11.6.1
+    host: grafana.localhost
+
+# =============================================================================
+# Security & gateway.
+# =============================================================================
+security:
+  gateway:
+    enabled: true
+  gatewayClass:
+    # Cluster-scoped singleton keyed to the Traefik controller. Disable on clusters
+    # that already provide the `traefik` GatewayClass.
+    enabled: true
+  clearglass:
+    enabled: true
+    image:
+      repo: eclipse-cfm/clearglass
+      tag: latest
+    replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
+    resources: {}
+  jwtlet:
+    enabled: true
+    image:
+      repo: eclipse-cfm/jwtlet
+      tag: latest
+    vaultAgentImage: hashicorp/vault:latest
+    replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
+    resources: {}
+  # Traefik forward-auth middlewares. Each generates a Middleware named `jwt-auth-<name>`
+  # whose forwardAuth address is clearglass /validate with one `scope=` query param per entry.
+  middlewares:
+    - name: management-api
+      scopes: [management-api:read, management-api:write]
+    - name: identity-api
+      scopes: [identity-api:read, identity-api:write]
+    - name: issuer-admin-api
+      scopes: [issuer-admin-api:read, issuer-admin-api:write]
+    - name: tenant-manager-api
+      scopes: [tenant-manager-api:read, tenant-manager-api:write]
+    - name: provision-manager-api
+      scopes: [provision-manager-api:read, provision-manager-api:write]
+    - name: siglet-api
+      scopes: [siglet-api:read]
+
+# =============================================================================
+# EDC application components.
+# =============================================================================
+edc:
+  controlplane:
+    enabled: true
+    image:
+      repo: eclipse-dataspace-hub/jad/controlplane
+      tag: latest
+    replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
+    resources: {}
+  dataplane:
+    enabled: true
+    image:
+      repo: eclipse-dataspace-hub/jad/dataplane
+      tag: latest
+    replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
+    resources: {}
+  identityhub:
+    enabled: true
+    configMapName: ih-config
+    image:
+      repo: eclipse-dataspace-hub/jad/identity-hub
+      tag: latest
+    replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
+    resources: {}
+  issuerservice:
+    enabled: true
+    image:
+      repo: eclipse-dataspace-hub/jad/issuerservice
+      tag: latest
+    replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
+    resources: {}
+  siglet:
+    enabled: true
+    image:
+      repo: eclipse-dataplane-core/dsdk-facet-rs/siglet
+      tag: latest
+    vaultAgentImage: hashicorp/vault:latest
+    replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
+    resources: {}
+
+# =============================================================================
+# CFM application components.
+# =============================================================================
+cfm:
+  agents:
+    # Single deployment, five containers each with their own config mounted at /etc/appname.
+    enabled: true
+    containers:
+      jwtletAgent:
+        image: { repo: eclipse-cfm/cfm/jwtletagent, tag: latest }
+      edcvAgent:
+        image: { repo: eclipse-cfm/cfm/edcvagent, tag: latest }
+      ihAgent:
+        image: { repo: eclipse-cfm/cfm/ihagent, tag: latest }
+      registrationAgent:
+        image: { repo: eclipse-cfm/cfm/regagent, tag: latest }
+      onboardingAgent:
+        image: { repo: eclipse-cfm/cfm/obagent, tag: latest }
+    replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
+    resources: {}
+  lifecycleAgents:
+    # keymanagement agent
+    enabled: true
+    image:
+      repo: eclipse-cfm/cfm/keymanagementagent
+      tag: latest
+    replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
+    resources: {}
+  provisionManager:
+    enabled: true
+    configMapName: pm-config
+    image:
+      repo: eclipse-cfm/cfm/pmanager
+      tag: latest
+    replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
+    resources: {}
+  tenantManager:
+    enabled: true
+    configMapName: tm-config
+    image:
+      repo: eclipse-cfm/cfm/tmanager
+      tag: latest
+    replicas: 1
+    # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
+    imagePullPolicy: ""
+    resources: {}
+
+# =============================================================================
+# Seed jobs run as Helm post-install/post-upgrade hooks; the infra bootstrap jobs
+# (postgres/nats/vault) are plain, release-owned Jobs (see templates/hooks/).
+# =============================================================================
+seedJobs:
+  # Delete-policy for the seed-job HOOKS. Hook resources are NOT tracked by the
+  # release, so without `hook-succeeded` they would linger after `helm uninstall`.
+  #   before-hook-creation : remove a prior run before re-running (idempotent upgrades)
+  #   hook-succeeded       : remove after a successful run (so nothing survives uninstall)
+  # Failed hooks are intentionally kept (no `hook-failed`) so their logs can be inspected.
+  hookDeletePolicy: before-hook-creation,hook-succeeded
+  # Kubernetes-native garbage collection for the seed Jobs, independent of Helm's hook
+  # lifecycle. Guarantees finished seed jobs are removed even when a helm install/upgrade
+  # is interrupted or times out before it can run the hook-succeeded cleanup. Also long
+  # enough (default 10m) to inspect a failed job's logs before the cluster reaps it.
+  ttlSecondsAfterFinished: 600
+  # Images used by the hook jobs.
+  images:
+    postgres: postgres:17.7-alpine
+    natsBox: natsio/nats-box:latest
+    vault: hashicorp/vault:latest
+    curl: curlimages/curl:latest
+  vaultBootstrap:
+    enabled: true
+  natsBootstrap:
+    enabled: true
+  jwtletSeed:
+    enabled: true
+  issuerserviceSeed:
+    enabled: true
+  provisionManagerSeed:
+    enabled: true
+  tenantManagerSeed:
+    enabled: true

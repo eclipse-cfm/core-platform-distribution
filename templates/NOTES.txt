@@ -1,0 +1,21 @@
+Core Platform Distribution ({{ .Chart.Name }}-{{ .Chart.Version }}) installed as release "{{ .Release.Name }}".
+
+Namespace: {{ include "cpd.namespace" . }}
+Gateway host: {{ .Values.global.host }}
+
+Enabled components:
+  EDC:      {{ if .Values.edc.controlplane.enabled }}controlplane {{ end }}{{ if .Values.edc.dataplane.enabled }}dataplane {{ end }}{{ if .Values.edc.identityhub.enabled }}identityhub {{ end }}{{ if .Values.edc.issuerservice.enabled }}issuerservice {{ end }}{{ if .Values.edc.siglet.enabled }}siglet{{ end }}
+  CFM:      {{ if .Values.cfm.agents.enabled }}agents {{ end }}{{ if .Values.cfm.lifecycleAgents.enabled }}lifecycle-agents {{ end }}{{ if .Values.cfm.provisionManager.enabled }}provision-manager {{ end }}{{ if .Values.cfm.tenantManager.enabled }}tenant-manager{{ end }}
+  Security: {{ if .Values.security.jwtlet.enabled }}jwtlet {{ end }}{{ if .Values.security.clearglass.enabled }}clearglass{{ end }}
+  Infra:    {{ if .Values.postgresql.enabled }}postgresql {{ end }}{{ if .Values.vault.enabled }}vault {{ end }}{{ if .Values.nats.enabled }}nats{{ end }}
+
+The post-install hooks run in this order:
+  postgres-init -> nats-bootstrap -> vault-bootstrap -> jwtlet-seed -> {issuerservice,provision-manager,tenant-manager}-seed
+
+Watch the rollout:
+  kubectl -n {{ include "cpd.namespace" . }} get pods,jobs -w
+
+Application routes are exposed on host "{{ .Values.global.host }}" via the "{{ .Values.global.gatewayName }}" gateway.
+{{ if .Values.global.debug.enabled }}
+NOTE: debug mode is ON — JVM apps expose a JDWP agent on port 1044 and dev credentials are in use.
+{{- end }}

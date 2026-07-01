@@ -1,0 +1,25 @@
+{{- if .Values.cfm.lifecycleAgents.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kmagent-config
+  namespace: {{ include "cpd.namespace" . }}
+
+data:
+  # the file must be called "tm", and the extension must be one of
+  # "json", "toml", "yaml", "yml", "properties", "props", "prop", "hcl", "tfvars", "dotenv", "env", "ini"
+  kmagent.env: |
+    uri: {{ include "cpd.natsUrl" . }}
+    bucket: cfm-bucket
+    stream: edc-events
+    httpport: 8080
+    postgres: true
+    dsn: postgres://cfm:cfm@{{ include "cpd.pgHost" . }}:{{ .Values.postgresql.connection.port }}/cfm?sslmode=disable
+
+    tokenexchange.url: http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080
+    tokenexchange.audience: {{ .Values.global.tokenExchangeAudience }}
+    tokenexchange.tokenFilePath: /var/run/secrets/jwtlet/token
+
+    siglet.management.api: http://{{ include "cpd.fqdn" (dict "svc" "siglet" "ctx" $) }}:8083
+{{- end }}

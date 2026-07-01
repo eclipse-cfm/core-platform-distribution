@@ -1,0 +1,101 @@
+{{- if .Values.cfm.tenantManager.enabled }}
+{{- $c := .Values.cfm.tenantManager }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cfm-tenant-manager
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    app: tenant-manager
+    platform: edcv
+    type: edcv-app
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $c.replicas }}
+  selector:
+    matchLabels:
+      app: tenant-manager
+  template:
+    metadata:
+      labels:
+        app: tenant-manager
+        platform: edcv
+        type: edcv-app
+    spec:
+      initContainers:
+        {{- include "cpd.waitForPostgres" (dict "db" "cfm" "user" "cfm" "password" "cfm" "ctx" $) | nindent 8 }}
+      containers:
+        - name: tenant-manager
+          image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
+          command: [ "/tmanager" ]
+          args: [
+            "--mode=debug"
+          ]
+          envFrom:
+            - configMapRef:
+                name: telemetry-config
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: config
+              mountPath: /etc/appname
+              readOnly: true
+          {{- with $c.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: tm-config
+      restartPolicy: Always
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tenant-manager
+  namespace: {{ include "cpd.namespace" . }}
+spec:
+  selector:
+    app: tenant-manager
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: tenant-manager
+  namespace: {{ include "cpd.namespace" . }}
+spec:
+  parentRefs:
+    - name: {{ .Values.global.gatewayName }}
+      kind: Gateway
+      sectionName: http
+  hostnames:
+    - {{ .Values.global.host }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/tm
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /api/v1alpha1
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: jwt-auth-tenant-manager-api
+      backendRefs:
+        - name: tenant-manager
+          port: 8080
+          weight: 1
+{{- end }}

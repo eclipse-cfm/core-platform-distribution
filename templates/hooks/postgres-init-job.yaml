@@ -1,0 +1,69 @@
+{{- if .Values.postgresql.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Plain Job (NOT a Helm hook): runs concurrently with the app workloads, which
+  # retry their DB connection until this creates their database/user. The revision
+  # suffix lets `helm upgrade` re-run it (Job specs are immutable).
+  name: postgres-init-r{{ .Release.Revision }}
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        type: edcv-job
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: postgres-init
+          image: {{ .Values.seedJobs.images.postgres }}
+          env:
+            - name: PGHOST
+              value: {{ include "cpd.pgHost" . | quote }}
+            - name: PGPORT
+              value: {{ .Values.postgresql.connection.port | quote }}
+            - name: PGUSER
+              value: {{ .Values.postgresql.connection.adminUser | quote }}
+            - name: PGDATABASE
+              value: {{ .Values.postgresql.auth.database | default "postgres" | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "cpd.pgAdminSecret" . }}
+                  key: {{ .Values.postgresql.connection.adminPasswordSecret.key }}
+          command: [ "sh", "-ec" ]
+          args:
+            - |
+              echo "Waiting for Postgres at $PGHOST:$PGPORT ..."
+              until pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" > /dev/null 2>&1; do
+                echo "Postgres not ready yet, retrying in 2 seconds..."
+                sleep 2
+              done
+              echo "Postgres is ready!"
+
+              # Idempotent create-if-missing for a database, its owner role, and grants.
+              # Uses plain statements (no DO/$$ block or \gexec) so it is portable across
+              # the busybox-style /bin/sh in the postgres image.
+              ensure_db_and_user() {
+                _db="$1"; _user="$2"; _pass="$3"
+                echo "Ensuring database '$_db' and user '$_user' exist..."
+                if [ "$(psql -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$_user'")" != "1" ]; then
+                  psql -c "CREATE ROLE \"$_user\" LOGIN PASSWORD '$_pass'"
+                fi
+                if [ "$(psql -tAc "SELECT 1 FROM pg_database WHERE datname = '$_db'")" != "1" ]; then
+                  psql -c "CREATE DATABASE \"$_db\" OWNER \"$_user\""
+                fi
+                psql -c "GRANT ALL PRIVILEGES ON DATABASE \"$_db\" TO \"$_user\""
+                psql -d "$_db" -c "GRANT ALL ON SCHEMA public TO \"$_user\""
+              }
+              {{- range .Values.postgresql.databases }}
+              ensure_db_and_user "{{ .db }}" "{{ .user }}" "{{ .password }}"
+              {{- end }}
+
+              echo "Postgres bootstrap completed successfully!"
+{{- end }}

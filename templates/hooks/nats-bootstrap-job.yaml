@@ -1,0 +1,51 @@
+{{- if and .Values.nats.enabled .Values.seedJobs.natsBootstrap.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Plain Job (NOT a Helm hook): runs concurrently with the workloads that publish
+  # to / consume from the stream it creates. The revision suffix lets `helm upgrade`
+  # re-run it (Job specs are immutable).
+  name: nats-bootstrap-r{{ .Release.Revision }}
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        type: edcv-job
+    spec:
+      containers:
+        - name: nats-cli
+          image: {{ .Values.seedJobs.images.natsBox }}
+          env:
+            - name: NATS_URL
+              value: {{ include "cpd.natsUrl" . | quote }}
+          command: [ "sh", "-ec" ]
+          args:
+            - |
+              echo "Waiting for NATS to be ready..."
+              until curl -sf http://{{ include "cpd.natsHost" . }}:{{ .Values.nats.connection.monitorPort }}/healthz > /dev/null 2>&1; do
+                echo "NATS not ready yet, retrying in 2 seconds..."
+                sleep 2
+              done
+              echo "NATS is ready!"
+              {{- range .Values.nats.streams }}
+
+              nats stream add {{ .name }} \
+                --server "$NATS_URL" \
+                --subjects "{{ .subjects }}" \
+                --storage {{ .storage }} \
+                --retention {{ .retention }} \
+                --allow-direct \
+                --defaults 2>/dev/null \
+              && echo "Stream '{{ .name }}' created" \
+              || echo "Stream '{{ .name }}' already exists, skipping"
+              {{- end }}
+
+              echo "NATS bootstrap completed successfully!"
+      restartPolicy: OnFailure
+{{- end }}

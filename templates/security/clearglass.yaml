@@ -1,0 +1,69 @@
+{{- if .Values.security.clearglass.enabled }}
+{{- $c := .Values.security.clearglass }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clearglass
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    app: clearglass
+    platform: edcv
+    type: edcv-infra
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $c.replicas }}
+  selector:
+    matchLabels:
+      app: clearglass
+  template:
+    metadata:
+      labels:
+        app: clearglass
+        platform: edcv
+        type: edcv-infra
+    spec:
+      containers:
+        - name: clearglass
+          image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: JWKS_URL
+              value: {{ printf "http://%s:8080/.well-known/jwks.json" (include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $)) }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          {{- with $c.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clearglass
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    tier: infrastructure
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: clearglass
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+{{- end }}

@@ -1,0 +1,282 @@
+#  Copyright (c) 2026 Metaform Systems, Inc
+#  SPDX-License-Identifier: Apache-2.0
+
+## This seed job creates a mapping entry for "system:serviceaccount:<namespace>:seed-jobs"
+## and a scope mapping entry in JWTlet.
+
+{{- if .Values.seedJobs.jwtletSeed.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: jwtlet-seed
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    app: jwtlet-seed
+    platform: edcv
+    type: edcv-job
+    {{- include "cpd.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": {{ .Values.seedJobs.hookDeletePolicy | quote }}
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: {{ .Values.seedJobs.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+        app: jwtlet-seed
+        platform: edcv
+        type: edcv-job
+    spec:
+      serviceAccountName: seed-jobs
+      restartPolicy: OnFailure
+
+      initContainers:
+        - name: wait-for-jwtlet
+          image: {{ .Values.seedJobs.images.curl }}
+          command:
+            - sh
+            - -c
+            - |
+              until curl -sf http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080/health; do
+                echo "Waiting for jwtlet to be ready..."
+                sleep 5
+              done
+              echo ""
+              echo "JWTlet is ready!"
+      containers:
+        - name: seed-jwtlet
+          image: {{ .Values.seedJobs.images.curl }}
+          env:
+            - name: JWTLET_MGMT_URL
+              value: "http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8081/api/v1"
+
+          volumeMounts:
+            - name: jwtlet-subject-token
+              mountPath: /var/run/secrets/jwtlet
+              readOnly: true
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+
+              # Executes a curl request and stores the response body in RESP_BODY and status code in RESP_STATUS.
+              do_curl() {
+                RESP=$(curl -s -w "\n%{http_code}" "$@")
+                RESP_STATUS=$(printf '%s\n' "$RESP" | tail -1)
+                RESP_BODY=$(printf '%s\n' "$RESP" | sed '$d')
+              }
+
+              # Read the projected service account token used to authenticate against the jwtlet management API.
+              TOKEN=$(cat /var/run/secrets/jwtlet/token)
+              if [ -z "$TOKEN" ]; then
+                echo "ERROR: subject token at /var/run/secrets/jwtlet/token is empty"
+                exit 1
+              fi
+
+              echo "================================================"
+              echo "Step 1: Create mapping entry for seed-jobs SA"
+              echo "================================================"
+
+              do_curl -X POST "${JWTLET_MGMT_URL}/mappings" \
+                -H "Authorization: Bearer ${TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d '{
+                    "clientIdentifier": "system:serviceaccount:{{ include "cpd.namespace" . }}:seed-jobs",
+                    "participantContext": "issuer",
+                    "scopes": ["read","write", "admin", "cfm-read", "cfm-write"],
+                    "audiences": ["{{ .Values.global.tokenExchangeAudience }}"]
+                }'
+              if [ "$RESP_STATUS" -eq 409 ]; then
+                echo "✓ mapping entry already exists"
+              elif [ "$RESP_STATUS" -ge 400 ]; then
+                echo "ERROR: Failed to create mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
+                exit 1
+              fi
+              echo "✓ mapping entries created"
+
+              echo "================================================"
+              echo "Step 2: Create mapping entry for Redline SA"
+              echo "================================================"
+
+              do_curl -X POST "${JWTLET_MGMT_URL}/mappings" \
+                -H "Authorization: Bearer ${TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d '{
+                    "clientIdentifier": "system:serviceaccount:{{ include "cpd.namespace" . }}:redline",
+                    "participantContext": "redline",
+                    "scopes": ["read","write", "cfm-read","cfm-write", "admin"],
+                    "audiences": ["{{ .Values.global.tokenExchangeAudience }}"]
+                }'
+              if [ "$RESP_STATUS" -eq 409 ]; then
+                echo "✓ mapping entry already exists"
+              elif [ "$RESP_STATUS" -ge 400 ]; then
+                echo "ERROR: Failed to create mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
+                exit 1
+              fi
+              echo "✓ mapping entries created"
+
+
+              echo ""
+              echo "================================================"
+              echo "Step 2b: Create mapping entry for IssuerService SA"
+              echo "================================================"
+
+              do_curl -X POST "${JWTLET_MGMT_URL}/mappings" \
+                -H "Authorization: Bearer ${TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d '{
+                    "clientIdentifier": "system:serviceaccount:{{ include "cpd.namespace" . }}:issuerservice",
+                    "participantContext": "issuer",
+                    "scopes": ["read"],
+                    "audiences": ["{{ .Values.global.tokenExchangeAudience }}"]
+                }'
+              if [ "$RESP_STATUS" -eq 409 ]; then
+                echo "✓ mapping entry already exists"
+              elif [ "$RESP_STATUS" -ge 400 ]; then
+                echo "ERROR: Failed to create mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
+                exit 1
+              fi
+              echo "✓ mapping entries created"
+
+              echo "================================================"
+              echo "Step 3: Create scope mapping entries"
+              echo "================================================"
+
+              do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "scope": "read",
+                  "claims": {
+                    "scope": "identity-api:read management-api:read issuer-admin-api:read siglet-api:read"
+                  }
+                }'
+              if [ "$RESP_STATUS" -eq 409 ]; then
+                echo "✓ 'read' scope mapping already exists"
+              elif [ "$RESP_STATUS" -ge 400 ]; then
+                echo "ERROR: Failed to create mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
+                exit 1
+              fi
+              echo "✓ 'read' scope mapping created"
+
+
+              do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "scope": "write",
+                  "claims": {
+                    "scope": "identity-api:write management-api:write issuer-admin-api:write"
+                  }
+                }'
+              if [ "$RESP_STATUS" -eq 409 ]; then
+                echo "✓ 'write' scope mapping already exists"
+              elif [ "$RESP_STATUS" -ge 400 ]; then
+                echo "ERROR: Failed to create scope mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
+                exit 1
+              fi
+              echo "✓ 'write' scope mapping created"
+
+              do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "scope": "cfm-write",
+                  "claims": {
+                    "scope": "provision-manager-api:write tenant-manager-api:write"
+                  }
+                }'
+              if [ "$RESP_STATUS" -eq 409 ]; then
+                echo "✓ 'cfm-write' scope mapping already exists"
+              elif [ "$RESP_STATUS" -ge 400 ]; then
+                echo "ERROR: Failed to create scope mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
+                exit 1
+              fi
+              echo "✓ 'CFM API write' scope mapping created"
+
+              do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "scope": "cfm-read",
+                  "claims": {
+                    "scope": "provision-manager-api:read tenant-manager-api:read"
+                  }
+                }'
+              if [ "$RESP_STATUS" -eq 409 ]; then
+                echo "✓ 'cfm-read' scope mapping already exists"
+              elif [ "$RESP_STATUS" -ge 400 ]; then
+                echo "ERROR: Failed to create scope mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
+                exit 1
+              fi
+              echo "✓ 'CFM API read' scope mapping created"
+
+               do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "scope": "siglet-write",
+                  "claims": {
+                    "scope": "siglet-mgmt-api:write"
+                  }
+                }'
+              if [ "$RESP_STATUS" -eq 409 ]; then
+                echo "✓ 'siglet-write' scope mapping already exists"
+              elif [ "$RESP_STATUS" -ge 400 ]; then
+                echo "ERROR: Failed to create scope mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
+                exit 1
+              fi
+              echo "✓ 'Siglet Mgmt API write' scope mapping created"
+
+              do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "scope": "siglet-read",
+                  "claims": {
+                    "scope": "siglet-mgmt-api:read"
+                  }
+                }'
+              if [ "$RESP_STATUS" -eq 409 ]; then
+                echo "✓ 'siglet-read' scope mapping already exists"
+              elif [ "$RESP_STATUS" -ge 400 ]; then
+                echo "ERROR: Failed to create scope mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
+                exit 1
+              fi
+              echo "✓ 'Siglet Mgmt API read' scope mapping created"
+
+              do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "scope": "admin",
+                  "claims": {
+                    "scope": "management-api:admin identity-api:admin issuer-admin-api:admin"
+                  }
+                }'
+              if [ "$RESP_STATUS" -eq 409 ]; then
+                echo "✓ 'admin' role scope mapping already exists"
+              elif [ "$RESP_STATUS" -ge 400 ]; then
+                echo "ERROR: Failed to create scope mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
+                exit 1
+              fi
+              echo "✓ 'admin' role scope mapping created"
+
+              echo ""
+              echo "================================================"
+              echo "✓✓ JWTlet seeding completed!"
+              echo "================================================"
+      volumes:
+        # RFC 8693 subject_token used to authenticate against the jwtlet
+        # management API. Audience must match jwtlet's `client_audience`.
+        - name: jwtlet-subject-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  audience: https://kubernetes.default.svc.cluster.local
+                  expirationSeconds: 3600
+{{- end }}

@@ -1,0 +1,23 @@
+{{- if .Values.cfm.tenantManager.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tm-config
+  namespace: {{ include "cpd.namespace" . }}
+
+data:
+  # the file must be called "tm", and the extension must be one of
+  # "json", "toml", "yaml", "yml", "properties", "props", "prop", "hcl", "tfvars", "dotenv", "env", "ini"
+  tm.env: |
+    uri: {{ include "cpd.natsUrl" . }}
+    bucket: cfm-bucket
+    stream: cfm-stream
+    httpport: 8080
+    postgres: true
+    dsn: postgres://cfm:cfm@{{ include "cpd.pgHost" . }}:{{ .Values.postgresql.connection.port }}/cfm?sslmode=disable
+    auth.enabled: true
+    auth.audience: edcv
+    auth.jwksUrl: http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080/.well-known/jwks.json
+    auth.expectedIssuer: http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080
+{{- end }}
