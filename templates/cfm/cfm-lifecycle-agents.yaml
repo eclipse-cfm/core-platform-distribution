@@ -1,0 +1,55 @@
+{{- if .Values.cfm.lifecycleAgents.enabled }}
+{{- $c := .Values.cfm.lifecycleAgents }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cfm-lifecycle-agents
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    app: cfm-lifecycle-agents
+    platform: edcv
+    type: edcv-app
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $c.replicas }}
+  selector:
+    matchLabels:
+      app: cfm-lifecycle-agents
+  template:
+    metadata:
+      labels:
+        app: cfm-lifecycle-agents
+        platform: edcv
+        type: edcv-app
+    spec:
+      serviceAccountName: cfm-agents
+      containers:
+        - name: keymanagement-agent
+          image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command: [ "/keymanagementagent" ]
+          args:
+              - "--mode=debug"
+          volumeMounts:
+              {{- include "cpd.jwtletSubjectTokenMount" . | nindent 14 }}
+              - name: kmagent-config
+                mountPath: /etc/appname
+                readOnly: true
+          envFrom:
+            - configMapRef:
+                name: telemetry-config
+          {{- with $c.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        # Audience-scoped, auto-rotated SA token for the cfm SA. Used as the
+        # RFC 8693 subject_token when exchanging for a participant-scoped token
+        # via the jwtlet token-exchange API. Audience must match jwtlet's
+        # `client_audience` in jwtlet-config.yaml.
+        {{- include "cpd.jwtletSubjectTokenVolume" . | nindent 8 }}
+        - name: kmagent-config
+          configMap:
+            name: kmagent-config
+      restartPolicy: Always
+{{- end }}

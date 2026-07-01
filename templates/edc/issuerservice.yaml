@@ -1,0 +1,144 @@
+{{- if .Values.edc.issuerservice.enabled }}
+{{- $c := .Values.edc.issuerservice }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: issuerservice
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    app: issuerservice
+    type: edcv-app
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $c.replicas }}
+  selector:
+    matchLabels:
+      app: issuerservice
+  template:
+    metadata:
+      name: issuerservice
+      labels:
+        app: issuerservice
+        platform: edcv
+        type: edcv-app
+    spec:
+      serviceAccountName: issuerservice
+      containers:
+        - name: issuerservice
+          image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          envFrom:
+            {{- include "cpd.appEnvFrom" (dict "config" "issuerservice-config" "ctx" $) | nindent 12 }}
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: edc.issuerservice
+          volumeMounts:
+            # RFC 8693 subject token used to exchange for a participant-scoped token at jwtlet.
+            {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /api/check/liveness
+              port: 10010
+            failureThreshold: 10
+            periodSeconds: 5
+            timeoutSeconds: 120
+          readinessProbe:
+            httpGet:
+              path: /api/check/readiness
+              port: 10010
+            failureThreshold: 10
+            periodSeconds: 5
+            timeoutSeconds: 120
+          startupProbe:
+            httpGet:
+              path: /api/check/startup
+              port: 10010
+            failureThreshold: 10
+            periodSeconds: 5
+            timeoutSeconds: 120
+          {{- with $c.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        {{- include "cpd.jwtletSubjectTokenVolume" . | nindent 8 }}
+      restartPolicy: Always
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: issuerservice
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: issuerservice
+  ports:
+    - port: 10010
+      targetPort: 10010
+      name: web
+    - port: 10011
+      targetPort: 10011
+      name: sts
+    - port: 10012
+      targetPort: 10012
+      name: issuance
+    - port: 10013
+      targetPort: 10013
+      name: issueradmin
+    - port: 10015
+      targetPort: 10015
+      name: identity
+    - port: 10016
+      targetPort: 10016
+      name: did
+    - port: 9999
+      targetPort: 9999
+      name: statuslist
+
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: issuerservice
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.global.gatewayName }}
+      kind: Gateway
+      sectionName: http
+  hostnames:
+    - {{ .Values.global.host }}
+  rules:
+    # /issuer/admin → issuer admin API port 10013
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/issuer/admin
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /api/admin/v1beta
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: jwt-auth-issuer-admin-api
+      backendRefs:
+        - name: issuerservice
+          port: 10013
+          weight: 1
+{{- end }}

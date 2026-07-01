@@ -1,0 +1,73 @@
+{{- if .Values.edc.issuerservice.enabled }}
+{{- $c := .Values.edc.issuerservice }}
+{{- $jwtlet := printf "http://%s:8080" (include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $)) }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: issuerservice-config
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+data:
+  # kv format
+
+  edc.hostname: {{ include "cpd.fqdn" (dict "svc" "issuerservice" "ctx" $) | quote }}
+  edc.issuer.statuslist.signing.key.alias: "statuslist-signing-key"
+  edc.ih.api.superuser.key: "c3VwZXItdXNlcg==.c3VwZXItc2VjcmV0LWtleQo="
+  edc.iam.did.web.use.https: "false"
+  # Web config
+  web.http.port: "10010"
+  web.http.path: "/api"
+  web.http.sts.port: "10011"
+  web.http.sts.path: "/api/sts"
+  web.http.issuance.port: "10012"
+  web.http.issuance.path: "/api/issuance"
+  web.http.issueradmin.port: "10013"
+  web.http.issueradmin.path: "/api/admin"
+  web.http.identity.port: "10015"
+  web.http.identity.path: "/api/identity"
+  web.http.did.port: "10016"
+  web.http.did.path: "/"
+  web.http.statuslist.port: "9999"
+  web.http.statuslist.path: "/statuslist"
+
+  # persistence and vault
+  edc.vault.hashicorp.url: {{ include "cpd.vaultUrl" . | quote }}
+  # Default vault partition (issuerservice's own secrets) uses the static root token.
+  edc.vault.hashicorp.token: {{ .Values.vault.connection.rootToken | quote }}
+  # Named, per-participant vault partitions (the "issuer" context) authenticate via token exchange (jwtlet).
+  edc.vault.hashicorp.auth.tokenexchange.url: {{ $jwtlet | quote }}
+  edc.vault.hashicorp.auth.tokenexchange.subjecttokenpath: "/var/run/secrets/jwtlet/token"
+  edc.vault.hashicorp.auth.tokenexchange.audience: {{ .Values.global.tokenExchangeAudience | quote }}
+  edc.vault.hashicorp.auth.tokenexchange.scope: "read"
+  edc.vault.hashicorp.auth.jwt.role: "participant"
+
+  edc.datasource.default.url: {{ printf "jdbc:postgresql://%s:%v/issuerservice" (include "cpd.pgHost" .) .Values.postgresql.connection.port | quote }}
+  edc.datasource.default.user: "issuer"
+  edc.datasource.default.password: "issuer"
+  edc.sql.schema.autocreate: "true"
+  edc.iam.accesstoken.jti.validation: "true"
+
+  edc.encryption.aes.key.alias: "aes-key-alias"
+  # Oauth2 config
+  # EDC verifies inbound tokens against jwtlet (the token-exchange issuer); see edc.iam.oauth2.* below.
+  edc.iam.oauth2.issuer: {{ $jwtlet | quote }}
+  edc.iam.oauth2.jwks.url: {{ printf "%s/.well-known/jwks.json" $jwtlet | quote }}
+{{- if .Values.global.debug.enabled }}
+
+  JAVA_TOOL_OPTIONS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=1044"
+{{- end }}
+
+  # even though we have a default data source, we need a named datasource for the DatabaseAttestationSource, because
+  # that is configured in the AttestationDefinition
+  edc.datasource.membership.url: {{ printf "jdbc:postgresql://%s:%v/issuerservice" (include "cpd.pgHost" .) .Values.postgresql.connection.port | quote }}
+  edc.datasource.membership.user: "issuer"
+  edc.datasource.membership.password: "issuer"
+
+  # NATS config for events
+  edc.events.nats.url: {{ include "cpd.natsUrl" . | quote }}
+  edc.events.nats.stream: "edc-events"
+  edc.events.nats.stream.create: "false"
+  edc.events.nats.stream.create.force: "false"
+{{- end }}

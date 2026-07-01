@@ -1,0 +1,293 @@
+#
+# Copyright (c) 2025 Metaform Systems, Inc.
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#      Metaform Systems, Inc. - initial API and implementation
+#
+
+# =============================================================================
+# Global settings shared across every component and sub-chart.
+# =============================================================================
+global:
+  # Target namespace. Also used as the DNS namespace segment in in-cluster FQDNs.
+  # Leave `createNamespace: false` and use `helm install --namespace <ns> --create-namespace`.
+  namespace: edc-v
+  createNamespace: false
+
+  imageRegistry: ghcr.io
+  imagePullPolicy: Always
+  clusterDomain: svc.cluster.local
+
+  # Acknowledge the Bitnami sub-charts' image guard (they ship "Bitnami Secure Images"
+  # by default and refuse to render otherwise). Dev-only; revisit for production images.
+  security:
+    allowInsecureImages: true
+
+  # HTTPRoute hostname all application routes are exposed under.
+  host: jad.localhost
+  gatewayName: edcv-gateway
+  gatewayClassName: traefik
+
+  # RFC 8693 subject-token wiring. The audience must match jwtlet's `client_audience`
+  # (the Kubernetes cluster issuer).
+  jwtSubjectTokenAudience: https://kubernetes.default.svc.cluster.local
+  jwtSubjectTokenExpirationSeconds: 3600
+  # jwtlet participant-token audience (client_audience / bound_audiences).
+  tokenExchangeAudience: edcv
+
+  # Emit JAVA_TOOL_OPTIONS with a JDWP agent (port 1044) for the JVM-based EDC apps.
+  # Dev-only convenience — disable for production images.
+  debug:
+    enabled: true
+
+# =============================================================================
+# Infrastructure sub-charts.
+# Each `connection.host: ""` means "derive <release>-<subchart>.<ns>.svc.<clusterDomain>".
+# The community services are NOT named postgres/vault/nats, so every consumer must
+# resolve the host through the connection helpers, never a hardcoded name.
+# =============================================================================
+postgresql:
+  enabled: true
+  connection:
+    host: ""
+    port: 5432
+    # Admin credentials used by the postgres-init hook to create the per-app DBs/users.
+    adminUser: postgres
+    # Secret (created by the bitnami sub-chart) holding the admin password.
+    adminPasswordSecret:
+      name: ""            # "" => "<release>-postgresql"
+      key: postgres-password
+  # Per-application databases/users created by the postgres-init hook.
+  databases:
+    - { db: controlplane,  user: cp,     password: cp }
+    - { db: identityhub,   user: ih,     password: ih }
+    - { db: issuerservice, user: issuer, password: issuer }
+    - { db: dataplane,     user: dp,     password: dp }
+    - { db: cfm,           user: cfm,    password: cfm }
+    - { db: sigletdb,      user: siglet, password: siglet }
+    - { db: jwtlet,        user: jwtlet, password: jwtlet }
+  # Values passed straight to the bitnami postgresql sub-chart.
+  auth:
+    postgresPassword: postgres
+    database: postgres
+  primary:
+    persistence:
+      enabled: false
+
+vault:
+  enabled: true
+  connection:
+    host: ""
+    port: 8200
+    scheme: http
+    rootToken: root       # dev only
+  # Values passed to the hashicorp vault sub-chart (dev mode == bespoke behaviour).
+  server:
+    dev:
+      enabled: true
+      devRootToken: root
+  injector:
+    enabled: false
+
+nats:
+  enabled: true
+  connection:
+    host: ""
+    port: 4222
+    monitorPort: 8222
+  # Streams created by the nats-bootstrap hook.
+  streams:
+    - name: edc-events
+      subjects: "events.>"
+      storage: memory
+      retention: interest
+  # Values passed to the nats sub-chart.
+  config:
+    jetstream:
+      enabled: true
+      memoryStore:
+        enabled: true
+
+# =============================================================================
+# Telemetry — OUT of first-pass scope. The in-chart telemetry-config ConfigMap
+# stays on (nearly every app envFrom's it); the observability sub-charts are
+# declared but disabled.
+# =============================================================================
+telemetry:
+  configMapEnabled: true
+  # Endpoints baked into the telemetry-config ConfigMap. `{svc}` markers are the
+  # in-cluster service names; hosts are rendered through cpd.fqdn at template time.
+  endpoints:
+    tracesService: jaeger
+    tracesPort: 4318
+    metricsService: prometheus
+    metricsPort: 9090
+    metricsPath: /api/v1/otlp/v1/metrics
+    logsService: loki
+    logsPort: 3100
+    logsPath: /otlp/v1/logs
+  propagators: "tracecontext,baggage"
+  kubePrometheusStack:
+    enabled: false
+  loki:
+    enabled: false
+  jaeger:
+    enabled: false
+
+# =============================================================================
+# Security & gateway.
+# =============================================================================
+security:
+  gateway:
+    enabled: true
+  gatewayClass:
+    # Cluster-scoped singleton keyed to the Traefik controller. Disable on clusters
+    # that already provide the `traefik` GatewayClass.
+    enabled: true
+  clearglass:
+    enabled: true
+    image:
+      repo: eclipse-cfm/clearglass
+      tag: latest
+    replicas: 1
+    resources: {}
+  jwtlet:
+    enabled: true
+    image:
+      repo: eclipse-cfm/jwtlet
+      tag: latest
+    vaultAgentImage: hashicorp/vault:latest
+    replicas: 1
+    resources: {}
+  # Traefik forward-auth middlewares. Each generates a Middleware named `jwt-auth-<name>`
+  # whose forwardAuth address is clearglass /validate with one `scope=` query param per entry.
+  middlewares:
+    - name: management-api
+      scopes: [management-api:read, management-api:write]
+    - name: identity-api
+      scopes: [identity-api:read, identity-api:write]
+    - name: issuer-admin-api
+      scopes: [issuer-admin-api:read, issuer-admin-api:write]
+    - name: tenant-manager-api
+      scopes: [tenant-manager-api:read, tenant-manager-api:write]
+    - name: provision-manager-api
+      scopes: [provision-manager-api:read, provision-manager-api:write]
+    - name: siglet-api
+      scopes: [siglet-api:read]
+
+# =============================================================================
+# EDC application components.
+# =============================================================================
+edc:
+  controlplane:
+    enabled: true
+    image:
+      repo: eclipse-dataspace-hub/jad/controlplane
+      tag: latest
+    replicas: 1
+    resources: {}
+  dataplane:
+    enabled: true
+    image:
+      repo: eclipse-dataspace-hub/jad/dataplane
+      tag: latest
+    replicas: 1
+    resources: {}
+  identityhub:
+    enabled: true
+    configMapName: ih-config
+    image:
+      repo: eclipse-dataspace-hub/jad/identity-hub
+      tag: latest
+    replicas: 1
+    resources: {}
+  issuerservice:
+    enabled: true
+    image:
+      repo: eclipse-dataspace-hub/jad/issuerservice
+      tag: latest
+    replicas: 1
+    resources: {}
+  siglet:
+    enabled: true
+    image:
+      repo: eclipse-dataplane-core/dsdk-facet-rs/siglet
+      tag: latest
+    vaultAgentImage: hashicorp/vault:latest
+    replicas: 1
+    resources: {}
+
+# =============================================================================
+# CFM application components.
+# =============================================================================
+cfm:
+  agents:
+    # Single deployment, five containers each with their own config mounted at /etc/appname.
+    enabled: true
+    containers:
+      jwtletAgent:
+        image: { repo: eclipse-cfm/cfm/jwtletagent, tag: latest }
+      edcvAgent:
+        image: { repo: eclipse-cfm/cfm/edcvagent, tag: latest }
+      ihAgent:
+        image: { repo: eclipse-cfm/cfm/ihagent, tag: latest }
+      registrationAgent:
+        image: { repo: eclipse-cfm/cfm/regagent, tag: latest }
+      onboardingAgent:
+        image: { repo: eclipse-cfm/cfm/obagent, tag: latest }
+    replicas: 1
+    resources: {}
+  lifecycleAgents:
+    # keymanagement agent
+    enabled: true
+    image:
+      repo: eclipse-cfm/cfm/keymanagementagent
+      tag: latest
+    replicas: 1
+    resources: {}
+  provisionManager:
+    enabled: true
+    configMapName: pm-config
+    image:
+      repo: eclipse-cfm/cfm/pmanager
+      tag: latest
+    replicas: 1
+    resources: {}
+  tenantManager:
+    enabled: true
+    configMapName: tm-config
+    image:
+      repo: eclipse-cfm/cfm/tmanager
+      tag: latest
+    replicas: 1
+    resources: {}
+
+# =============================================================================
+# Seed / bootstrap jobs (rendered as Helm hooks with weight ordering).
+# =============================================================================
+seedJobs:
+  hookDeletePolicy: before-hook-creation
+  # Images used by the hook jobs.
+  images:
+    postgres: postgres:17.7-alpine
+    natsBox: natsio/nats-box:latest
+    vault: hashicorp/vault:latest
+    curl: curlimages/curl:latest
+  vaultBootstrap:
+    enabled: true
+  natsBootstrap:
+    enabled: true
+  jwtletSeed:
+    enabled: true
+  issuerserviceSeed:
+    enabled: true
+  provisionManagerSeed:
+    enabled: true
+  tenantManagerSeed:
+    enabled: true

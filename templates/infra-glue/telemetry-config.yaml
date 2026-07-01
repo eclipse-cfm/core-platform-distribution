@@ -1,0 +1,20 @@
+{{- if .Values.telemetry.configMapEnabled }}
+{{- $t := .Values.telemetry.endpoints }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: telemetry-config
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+data:
+  # Pin the W3C propagators across every service (Java agent, Go SDK, Rust SDK) so a
+  # runtime default change in any image can't silently drop traceparent at a boundary.
+  OTEL_PROPAGATORS: {{ .Values.telemetry.propagators | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ printf "http://%s:%v" (include "cpd.fqdn" (dict "svc" $t.tracesService "ctx" $)) $t.tracesPort | quote }}
+  OTEL_TRACES_EXPORTER: "otlp"
+  OTEL_METRICS_EXPORTER: "otlp"
+  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: {{ printf "http://%s:%v%s" (include "cpd.fqdn" (dict "svc" $t.metricsService "ctx" $)) $t.metricsPort $t.metricsPath | quote }}
+  OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: {{ printf "http://%s:%v%s" (include "cpd.fqdn" (dict "svc" $t.logsService "ctx" $)) $t.logsPort $t.logsPath | quote }}
+{{- end }}

@@ -1,0 +1,28 @@
+# Helm
+
+# Resolved chart dependencies — pulled via `helm dependency build` from Chart.lock.
+# Keep Chart.lock committed; regenerate charts/ locally.
+charts/
+*.tgz
+
+# Rendered / packaged output
+*.orig
+output.yaml
+manifest.yaml
+
+# Local value overrides (may contain secrets)
+values.local.yaml
+values-*.local.yaml
+secrets*.yaml
+*.dec.yaml
+
+# helm-secrets / SOPS
+.decrypted~*
+
+# Editor / OS cruft
+.DS_Store
+.idea/
+*.swp
+*.swo
+*~
+.vscode/

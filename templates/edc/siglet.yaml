@@ -1,0 +1,216 @@
+{{- if .Values.edc.siglet.enabled }}
+{{- $c := .Values.edc.siglet }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: siglet
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    app: siglet
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $c.replicas }}
+  selector:
+    matchLabels:
+      app: siglet
+  template:
+    metadata:
+      labels:
+        app: siglet
+    spec:
+      serviceAccountName: siglet-sa
+      initContainers:
+        # Native sidecar: starts and stays running before the main containers,
+        # writing the Vault token to /vault/secrets/.vault-token.
+        - name: vault-agent
+          image: {{ $c.vaultAgentImage }}
+          restartPolicy: Always
+          securityContext:
+            capabilities:
+              add:
+                - IPC_LOCK
+          args:
+            - "agent"
+            - "-config=/vault/config/vault-agent-config.hcl"
+            - "-log-level=debug"
+          env:
+            - name: VAULT_ADDR
+              value: {{ include "cpd.vaultUrl" . | quote }}
+          volumeMounts:
+            - name: vault-agent-config
+              mountPath: /vault/config
+            - name: vault-secrets
+              mountPath: /vault/secrets
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+        # Block startup until the Vault token has actually been written, so
+        # siglet never starts before the token file exists.
+        - name: wait-for-vault-token
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Vault token..."
+              until [ -f /vault/secrets/.vault-token ]; do
+                sleep 1
+              done
+              echo "Vault token available"
+          volumeMounts:
+            - name: vault-secrets
+              mountPath: /vault/secrets
+              readOnly: true
+      volumes:
+        - name: vault-secrets
+          emptyDir: { }
+        - name: vault-agent-config
+          configMap:
+            name: vault-agent-config-siglet
+            items:
+              - key: vault-agent-config.hcl
+                path: vault-agent-config.hcl
+        - name: siglet-config
+          configMap:
+            name: siglet-config
+      containers:
+        - name: siglet
+          image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: signaling
+              containerPort: 8081
+              protocol: TCP
+            - name: refresh
+              containerPort: 8082
+              protocol: TCP
+            - name: management
+              containerPort: 8083
+              protocol: TCP
+          env:
+            - name: RUST_LOG
+              value: "info,siglet=debug"
+            - name: SIGLET__SIGLET_API_PORT
+              value: "8080"
+            - name: SIGLET__SIGNALING_PORT
+              value: "8081"
+            - name: SIGLET__REFRESH_API_PORT
+              value: "8082"
+            - name: SIGLET_CONFIG_FILE
+              value: "/config/siglet.toml"
+            - name: SIGLET__VAULT__URL
+              value: {{ include "cpd.vaultUrl" . | quote }}
+            - name: SIGLET__VAULT__TOKEN_FILE
+              value: "/vault/secrets/.vault-token"
+            - name: SIGLET__VAULT__SIGNING_KEY_NAME
+              value: "signing-siglet"
+            - name: SIGLET__VAULT__USE_HTTP_RESOLUTION
+              value: "true"
+            - name: SIGLET__TOKEN__ISSUER
+              value: "siglet-issuer"
+            - name: SIGLET__TOKEN__REFRESH_ENDPOINT
+              value: {{ printf "http://%s:8082/token/refresh" (include "cpd.fqdn" (dict "svc" "siglet" "ctx" $)) | quote }}
+          volumeMounts:
+            - name: siglet-config
+              mountPath: /config
+              readOnly: true
+            - name: vault-secrets
+              mountPath: /vault/secrets
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: siglet
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    app: siglet
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+    - name: signaling
+      port: 8081
+      targetPort: signaling
+      protocol: TCP
+    - name: refresh
+      port: 8082
+      targetPort: refresh
+      protocol: TCP
+    - name: management
+      port: 8083
+      targetPort: management
+      protocol: TCP
+  selector:
+    app: siglet
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: siglet
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.global.gatewayName }}
+      kind: Gateway
+      sectionName: http
+  hostnames:
+    - {{ .Values.global.host }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/siglet
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: jwt-auth-siglet-api
+      backendRefs:
+        - name: siglet
+          port: 8080
+          weight: 1
+{{- end }}

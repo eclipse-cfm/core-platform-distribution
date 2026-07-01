@@ -1,0 +1,198 @@
+{{- if .Values.security.jwtlet.enabled }}
+{{- $c := .Values.security.jwtlet }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jwtlet
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $c.replicas }}
+  selector:
+    matchLabels:
+      app: jwtlet
+      type: edcv-infra
+  template:
+    metadata:
+      labels:
+        app: jwtlet
+        type: edcv-infra
+    spec:
+      serviceAccountName: jwtlet-sa
+      initContainers:
+      - name: wait-for-postgres
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          until nc -z {{ include "cpd.pgHost" . }} {{ .Values.postgresql.connection.port }}; do
+            echo "Waiting for Postgres..."
+            sleep 2
+          done
+          echo "Postgres is ready"
+      - name: wait-for-vault
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          until wget -q -O- {{ include "cpd.vaultUrl" . }}/v1/sys/health > /dev/null 2>&1; do
+            echo "Waiting for Vault..."
+            sleep 2
+          done
+          echo "Vault is ready"
+      # Native sidecar: starts and stays running before the main containers,
+      # writing the Vault token to /vault/secrets/.vault-token.
+      - name: vault-agent
+        image: {{ $c.vaultAgentImage }}
+        restartPolicy: Always
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+        args:
+          - "agent"
+          - "-config=/vault/config/agent.hcl"
+          - "-log-level=info"
+        volumeMounts:
+        - name: vault-agent-config
+          mountPath: /vault/config
+        - name: vault-secrets
+          mountPath: /vault/secrets
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      # The jwtlet image is distroless (no shell), so the wait-for-token loop
+      # lives here in busybox rather than in the jwtlet container's command.
+      - name: wait-for-vault-token
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for Vault token..."
+          until [ -f /vault/secrets/.vault-token ]; do
+            sleep 1
+          done
+          echo "Vault token available"
+        volumeMounts:
+        - name: vault-secrets
+          mountPath: /vault/secrets
+          readOnly: true
+      containers:
+      - name: jwtlet
+        image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: 8080
+          name: token-exchange
+        - containerPort: 8081
+          name: management
+        envFrom:
+        - configMapRef:
+            name: telemetry-config
+        env:
+        - name: RUST_LOG
+          value: "info"
+        - name: JWTLET_CONFIG_FILE
+          value: /config/jwtlet.toml
+        - name: OTEL_SERVICE_NAME
+          value: jwtlet
+        volumeMounts:
+        - name: jwtlet-config
+          mountPath: /config
+          readOnly: true
+        - name: vault-secrets
+          mountPath: /vault/secrets
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: vault-agent-config
+        configMap:
+          name: vault-agent-config-jwtlet
+      - name: jwtlet-config
+        configMap:
+          name: jwtlet-config
+      - name: vault-secrets
+        emptyDir:
+          medium: Memory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jwtlet
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: jwtlet
+    type: edcv-infra
+  ports:
+    - name: token-exchange
+      protocol: TCP
+      port: 8080
+      targetPort: token-exchange
+    - name: management
+      protocol: TCP
+      port: 8081
+      targetPort: management
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: jwtlet
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.global.gatewayName }}
+      kind: Gateway
+      sectionName: http
+  hostnames:
+    - {{ .Values.global.host }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/auth
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: jwtlet
+          port: 8080
+          weight: 1
+{{- end }}
