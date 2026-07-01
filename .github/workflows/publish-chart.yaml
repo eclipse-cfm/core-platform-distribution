@@ -1,0 +1,91 @@
+#
+# Copyright (c) 2025 Metaform Systems, Inc.
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#      Metaform Systems, Inc. - initial API and implementation
+#
+
+name: Publish Helm Chart to GHCR
+
+on:
+  # publish on version tags, e.g. v0.1.0 / 0.1.0
+  push:
+    tags:
+      - "v*.*.*"
+      - "[0-9]+.[0-9]+.[0-9]+"
+  # allow manual runs (packages the version currently in Chart.yaml)
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.3
+
+      - name: Build chart dependencies
+        run: helm dependency build .
+
+      - name: Lint chart
+        run: helm lint .
+
+      - name: Render templates
+        run: helm template . > /dev/null
+
+  publish:
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.3
+
+      # OCI repository must be lowercase; github.repository_owner may contain uppercase
+      - name: Compute OCI repository
+        id: repo
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            helm registry login "${REGISTRY}" \
+              --username "${{ github.actor }}" \
+              --password-stdin
+
+      - name: Build chart dependencies
+        run: helm dependency build .
+
+      - name: Package chart
+        id: package
+        run: |
+          helm package . --destination dist
+          pkg=$(ls dist/*.tgz | head -n1)
+          echo "path=${pkg}" >> "$GITHUB_OUTPUT"
+
+      - name: Push chart to GHCR
+        run: |
+          helm push "${{ steps.package.outputs.path }}" \
+            "oci://${REGISTRY}/${{ steps.repo.outputs.owner }}/charts"
