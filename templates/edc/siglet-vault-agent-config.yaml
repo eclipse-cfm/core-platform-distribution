@@ -26,7 +26,7 @@ data:
     pid_file = "/tmp/vault-agent.pid"
 
     vault {
-      address = "http://vault:8200"
+      address = "{{ include "cpd.vaultUrl" . }}"
     }
 
     auto_auth {

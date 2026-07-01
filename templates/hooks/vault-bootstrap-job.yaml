@@ -4,16 +4,17 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: vault-bootstrap
+  # Plain Job (NOT a Helm hook): it must run concurrently with the jwtlet/siglet
+  # workloads whose vault-agent sidecars depend on the k8s-auth roles it creates.
+  # As a post-install hook it would deadlock `helm install --wait`. The revision
+  # suffix lets `helm upgrade` re-run it (Job specs are immutable).
+  name: vault-bootstrap-r{{ .Release.Revision }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}
-  annotations:
-    "helm.sh/hook": post-install,post-upgrade
-    "helm.sh/hook-weight": "-20"
-    "helm.sh/hook-delete-policy": {{ .Values.seedJobs.hookDeletePolicy | quote }}
 spec:
   backoffLimit: 10
+  ttlSecondsAfterFinished: 600
   template:
     metadata:
       labels:
@@ -56,7 +57,10 @@ spec:
               # dependency between Vault bootstrap and jwtlet.
 
               # create mount for participants, each stores their secrets in a subdirectory
-              vault secrets enable -path=participants -version=2 kv || { echo "Failed to enable secrets engine"; exit 1; }
+              # (idempotent: enabling an already-enabled path is not an error on re-run/upgrade)
+              vault secrets enable -path=participants -version=2 kv 2>/dev/null \
+                && echo "participants kv secrets engine enabled" \
+                || echo "participants kv secrets engine already enabled"
 
               # get accessor for entity aliases
               ACCESSOR=$(vault auth list | grep 'jwt/' | awk '{print $3}')
@@ -114,9 +118,13 @@ spec:
 
               vault auth enable kubernetes 2>/dev/null || echo "Kubernetes auth already enabled"
 
+              # Use the in-cluster API DNS name rather than the KUBERNETES_PORT_443_TCP_ADDR
+              # link env var: that var is only injected for services in the pod's own
+              # namespace, so it is empty for pods outside `default` and would yield an
+              # invalid kubernetes_host (https://:443) -> every k8s-auth login 403s.
               vault write auth/kubernetes/config \
                 token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
-                kubernetes_host=https://${KUBERNETES_PORT_443_TCP_ADDR}:443 \
+                kubernetes_host="https://kubernetes.default.svc:443" \
                 kubernetes_ca_cert="$(cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt)"
 
               # Enable Transit secrets engine for JWT signing

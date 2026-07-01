@@ -126,14 +126,18 @@ nats:
         enabled: true
 
 # =============================================================================
-# Telemetry — OUT of first-pass scope. The in-chart telemetry-config ConfigMap
-# stays on (nearly every app envFrom's it); the observability sub-charts are
-# declared but disabled.
+# Telemetry (observability stack). Deployed as in-chart templates (self-contained
+# single-replica Deployments) named exactly as the telemetry-config endpoints below
+# expect: jaeger / prometheus / loki / grafana. This keeps the OTLP wiring simple and
+# matches the config; swap for the upstream community charts later if desired.
 # =============================================================================
 telemetry:
+  # The telemetry-config ConfigMap is envFrom'd by nearly every app; keep it on even
+  # if you disable the backends (exports will just no-op/fail softly).
   configMapEnabled: true
-  # Endpoints baked into the telemetry-config ConfigMap. `{svc}` markers are the
-  # in-cluster service names; hosts are rendered through cpd.fqdn at template time.
+  imagePullPolicy: IfNotPresent
+  # Endpoints baked into the telemetry-config ConfigMap. The service names are the
+  # in-cluster Service names; hosts are rendered through cpd.fqdn at template time.
   endpoints:
     tracesService: jaeger
     tracesPort: 4318
@@ -144,12 +148,23 @@ telemetry:
     logsPort: 3100
     logsPath: /otlp/v1/logs
   propagators: "tracecontext,baggage"
-  kubePrometheusStack:
-    enabled: false
-  loki:
-    enabled: false
+
   jaeger:
-    enabled: false
+    enabled: true
+    image: jaegertracing/all-in-one:1.62.0  # 1.62.0: latest has UI theming issues
+    host: jaeger.localhost
+  prometheus:
+    enabled: true
+    image: prom/prometheus:v3.2.1
+    host: prometheus.localhost
+  loki:
+    enabled: true
+    image: grafana/loki:3.4.2
+    host: loki.localhost
+  grafana:
+    enabled: true
+    image: grafana/grafana:11.6.1
+    host: grafana.localhost
 
 # =============================================================================
 # Security & gateway.

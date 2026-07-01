@@ -3,16 +3,16 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: postgres-init
+  # Plain Job (NOT a Helm hook): runs concurrently with the app workloads, which
+  # retry their DB connection until this creates their database/user. The revision
+  # suffix lets `helm upgrade` re-run it (Job specs are immutable).
+  name: postgres-init-r{{ .Release.Revision }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}
-  annotations:
-    "helm.sh/hook": post-install,post-upgrade
-    "helm.sh/hook-weight": "-40"
-    "helm.sh/hook-delete-policy": {{ .Values.seedJobs.hookDeletePolicy | quote }}
 spec:
   backoffLimit: 10
+  ttlSecondsAfterFinished: 600
   template:
     metadata:
       labels:

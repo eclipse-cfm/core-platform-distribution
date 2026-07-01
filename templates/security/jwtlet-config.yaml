@@ -14,7 +14,7 @@ data:
     issuer = "http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080"
     [storage_backend]
     type = "postgres"
-    url  = "postgresql://jwtlet:jwtlet@postgres:5432/jwtlet"
+    url  = "postgresql://jwtlet:jwtlet@{{ include "cpd.pgHost" . }}:{{ .Values.postgresql.connection.port }}/jwtlet"
 
     [k8s]
     api_server_url  = "https://kubernetes.default.svc"

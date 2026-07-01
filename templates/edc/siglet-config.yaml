@@ -26,7 +26,7 @@ data:
     server_secret = "93d22865c1b0695d3caa1ac5ba648b88942aaeee3b05ba4aff2efc87e2cd1944"
     [storage_backend]
     type = "postgres-vault"
-    url = "postgresql://siglet:siglet@postgres:5432/sigletdb"
+    url = "postgresql://siglet:siglet@{{ include "cpd.pgHost" . }}:{{ .Values.postgresql.connection.port }}/sigletdb"
     [[transfer_types]]
     transfer_type = "HttpData-PULL"
     endpoint_type = "HTTP"
