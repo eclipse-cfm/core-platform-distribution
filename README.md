@@ -37,7 +37,7 @@ The chart is published as an OCI artifact to GitHub Container Registry:
 ```bash
 helm upgrade --install core-platform \
   oci://ghcr.io/eclipse-cfm/charts/core-platform-distribution \
-  # optional: --version <version> ]
+  # optional: --version <version> \
   --namespace edc-v --create-namespace \
   --wait --timeout 15m
 ```
