@@ -21,5 +21,6 @@ data:
     tokenexchange.audience: {{ .Values.global.tokenExchangeAudience }}
     tokenexchange.tokenFilePath: /var/run/secrets/jwtlet/token
 
-    siglet.management.api: http://{{ include "cpd.fqdn" (dict "svc" "siglet" "ctx" $) }}:8083
+    siglet.management.url: http://{{ include "cpd.fqdn" (dict "svc" "siglet" "ctx" $) }}:8083
+    controlplane.management.url: http://{{ include "cpd.fqdn" (dict "svc" "controlplane" "ctx" $) }}:8081/api/mgmt
 {{- end }}
