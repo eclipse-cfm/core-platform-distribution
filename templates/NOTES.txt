@@ -4,7 +4,7 @@ Namespace: {{ include "cpd.namespace" . }}
 Gateway host: {{ .Values.global.host }}
 
 Enabled components:
-  EDC:      {{ if .Values.edc.controlplane.enabled }}controlplane {{ end }}{{ if .Values.edc.dataplane.enabled }}dataplane {{ end }}{{ if .Values.edc.identityhub.enabled }}identityhub {{ end }}{{ if .Values.edc.issuerservice.enabled }}issuerservice {{ end }}{{ if .Values.edc.siglet.enabled }}siglet{{ end }}
+  EDC:      {{ if .Values.edc.controlplane.enabled }}controlplane {{ end }}{{ if .Values.edc.identityhub.enabled }}identityhub {{ end }}{{ if .Values.edc.issuerservice.enabled }}issuerservice {{ end }}{{ if .Values.edc.siglet.enabled }}siglet{{ end }}
   CFM:      {{ if .Values.cfm.agents.enabled }}agents {{ end }}{{ if .Values.cfm.lifecycleAgents.enabled }}lifecycle-agents {{ end }}{{ if .Values.cfm.provisionManager.enabled }}provision-manager {{ end }}{{ if .Values.cfm.tenantManager.enabled }}tenant-manager{{ end }}
   Security: {{ if .Values.security.jwtlet.enabled }}jwtlet {{ end }}{{ if .Values.security.clearglass.enabled }}clearglass{{ end }}
   Infra:    {{ if .Values.postgresql.enabled }}postgresql {{ end }}{{ if .Values.vault.enabled }}vault {{ end }}{{ if .Values.nats.enabled }}nats{{ end }}

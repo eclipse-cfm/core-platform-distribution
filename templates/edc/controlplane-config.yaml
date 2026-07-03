@@ -45,7 +45,7 @@ data:
   edc.nats.tp.subscriber.autocreate: "true"
   edc.nats.tp.publisher.url: {{ include "cpd.natsUrl" . | quote }}
 
-  # dataplane config
+  # datasource config
   edc.datasource.default.url: {{ printf "jdbc:postgresql://%s:%v/controlplane" (include "cpd.pgHost" .) .Values.postgresql.connection.port | quote }}
   edc.datasource.default.user: "cp"
   edc.datasource.default.password: "cp"
