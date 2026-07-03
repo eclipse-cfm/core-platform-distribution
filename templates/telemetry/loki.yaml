@@ -1,13 +1,15 @@
 {{- if .Values.telemetry.loki.enabled }}
 {{- $c := .Values.telemetry.loki }}
+{{- $name := include "cpd.fullname" (dict "name" "loki" "ctx" $) }}
+{{- $configName := include "cpd.fullname" (dict "name" "loki-config" "ctx" $) }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: loki
+  name: {{ $name }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
-    app: loki
+    app: {{ $name }}
     platform: edcv
     type: edcv-infra
     {{- include "cpd.labels" . | nindent 4 }}
@@ -15,12 +17,12 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: loki
+      app: {{ $name }}
   template:
     metadata:
-      name: loki
+      name: {{ $name }}
       labels:
-        app: loki
+        app: {{ $name }}
         platform: edcv
         type: edcv-infra
     spec:
@@ -40,13 +42,13 @@ spec:
       volumes:
         - name: loki-config
           configMap:
-            name: loki-config
+            name: {{ $configName }}
       restartPolicy: Always
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: loki-config
+  name: {{ $configName }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}
@@ -82,14 +84,14 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: loki
+  name: {{ $name }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   selector:
-    app: loki
+    app: {{ $name }}
   ports:
     - name: http
       port: 3100
@@ -99,7 +101,7 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: loki
+  name: {{ $name }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}
@@ -114,7 +116,7 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: loki
+        - name: {{ $name }}
           port: 3100
 {{- end }}
 {{- end }}

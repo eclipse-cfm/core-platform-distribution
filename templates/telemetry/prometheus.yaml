@@ -1,13 +1,15 @@
 {{- if .Values.telemetry.prometheus.enabled }}
 {{- $c := .Values.telemetry.prometheus }}
+{{- $name := include "cpd.fullname" (dict "name" "prometheus" "ctx" $) }}
+{{- $configName := include "cpd.fullname" (dict "name" "prometheus-config" "ctx" $) }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: prometheus
+  name: {{ $name }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
-    app: prometheus
+    app: {{ $name }}
     platform: edcv
     type: edcv-infra
     {{- include "cpd.labels" . | nindent 4 }}
@@ -15,12 +17,12 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: prometheus
+      app: {{ $name }}
   template:
     metadata:
-      name: prometheus
+      name: {{ $name }}
       labels:
-        app: prometheus
+        app: {{ $name }}
         platform: edcv
         type: edcv-infra
     spec:
@@ -41,13 +43,13 @@ spec:
       volumes:
         - name: prometheus-config
           configMap:
-            name: prometheus-config
+            name: {{ $configName }}
       restartPolicy: Always
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: prometheus-config
+  name: {{ $configName }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}
@@ -59,14 +61,14 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: prometheus
+  name: {{ $name }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   selector:
-    app: prometheus
+    app: {{ $name }}
   ports:
     - name: http
       port: 9090
@@ -76,7 +78,7 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: prometheus
+  name: {{ $name }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}
@@ -91,7 +93,7 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: prometheus
+        - name: {{ $name }}
           port: 9090
 {{- end }}
 {{- end }}

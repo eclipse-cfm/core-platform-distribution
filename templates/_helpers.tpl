@@ -11,6 +11,14 @@ SPDX-License-Identifier: Apache-2.0
 {{- .Values.global.namespace | default .Release.Namespace -}}
 {{- end -}}
 
+{{/* Release-name-prefixed resource name for in-chart infra (nats, telemetry stack).
+     Keeps them on the same "<release>-<component>" convention as the community
+     sub-charts (<release>-postgresql / <release>-vault) so nothing collides across
+     releases sharing a namespace. Call as: (dict "name" "nats" "ctx" $). */}}
+{{- define "cpd.fullname" -}}
+{{- printf "%s-%s" .ctx.Release.Name .name -}}
+{{- end -}}
+
 {{- define "cpd.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
@@ -42,7 +50,7 @@ SPDX-License-Identifier: Apache-2.0
 {{- define "cpd.natsHost" -}}
 {{- $c := .Values.nats.connection -}}
 {{- if $c.host -}}{{ $c.host -}}
-{{- else -}}{{ printf "nats.%s.%s" (include "cpd.namespace" .) .Values.global.clusterDomain -}}{{- end -}}
+{{- else -}}{{ printf "%s-nats.%s.%s" .Release.Name (include "cpd.namespace" .) .Values.global.clusterDomain -}}{{- end -}}
 {{- end -}}
 
 {{/* Convenience URL builders reused across configs and hook scripts. */}}

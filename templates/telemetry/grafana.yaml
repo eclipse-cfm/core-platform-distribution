@@ -1,13 +1,19 @@
 {{- if .Values.telemetry.grafana.enabled }}
 {{- $c := .Values.telemetry.grafana }}
+{{- $name := include "cpd.fullname" (dict "name" "grafana" "ctx" $) }}
+{{- $datasourcesName := include "cpd.fullname" (dict "name" "grafana-datasources" "ctx" $) }}
+{{- $dashboardsName := include "cpd.fullname" (dict "name" "grafana-dashboard-provisioning" "ctx" $) }}
+{{- $prometheusHost := include "cpd.fqdn" (dict "svc" (include "cpd.fullname" (dict "name" "prometheus" "ctx" $)) "ctx" $) }}
+{{- $jaegerHost := include "cpd.fqdn" (dict "svc" (include "cpd.fullname" (dict "name" "jaeger" "ctx" $)) "ctx" $) }}
+{{- $lokiHost := include "cpd.fqdn" (dict "svc" (include "cpd.fullname" (dict "name" "loki" "ctx" $)) "ctx" $) }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: grafana
+  name: {{ $name }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
-    app: grafana
+    app: {{ $name }}
     platform: edcv
     type: edcv-infra
     {{- include "cpd.labels" . | nindent 4 }}
@@ -15,12 +21,12 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: grafana
+      app: {{ $name }}
   template:
     metadata:
-      name: grafana
+      name: {{ $name }}
       labels:
-        app: grafana
+        app: {{ $name }}
         platform: edcv
         type: edcv-infra
     spec:
@@ -43,13 +49,13 @@ spec:
       volumes:
         - name: grafana-datasources
           configMap:
-            name: grafana-datasources
+            name: {{ $datasourcesName }}
       restartPolicy: Always
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-datasources
+  name: {{ $datasourcesName }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}
@@ -60,7 +66,7 @@ data:
       - name: Prometheus
         type: prometheus
         uid: prometheus
-        url: {{ printf "http://%s:9090" (include "cpd.fqdn" (dict "svc" "prometheus" "ctx" $)) }}
+        url: {{ printf "http://%s:9090" $prometheusHost }}
         isDefault: true
         jsonData:
           timeInterval: 15s
@@ -68,7 +74,7 @@ data:
       - name: Jaeger
         type: jaeger
         uid: jaeger
-        url: {{ printf "http://%s:16686" (include "cpd.fqdn" (dict "svc" "jaeger" "ctx" $)) }}
+        url: {{ printf "http://%s:16686" $jaegerHost }}
         jsonData:
           tracesToLogsV2:
             datasourceUid: loki
@@ -82,7 +88,7 @@ data:
       - name: Loki
         type: loki
         uid: loki
-        url: {{ printf "http://%s:3100" (include "cpd.fqdn" (dict "svc" "loki" "ctx" $)) }}
+        url: {{ printf "http://%s:3100" $lokiHost }}
         jsonData:
           derivedFields:
             - name: TraceID
@@ -93,7 +99,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboard-provisioning
+  name: {{ $dashboardsName }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}
@@ -113,7 +119,7 @@ data:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: grafana
+  name: {{ $name }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}
@@ -128,7 +134,7 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: grafana
+        - name: {{ $name }}
           port: 3000
 {{- end }}
 {{- end }}
