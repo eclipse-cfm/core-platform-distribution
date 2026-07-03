@@ -11,14 +11,13 @@
 #      Metaform Systems, Inc. - initial API and implementation
 #
 
-# Default registry prepended to first-party component images whose `repo` has no
-# host. Kept OUTSIDE `global` on purpose: Bitnami sub-charts honor `global.imageRegistry`
-# (and it takes precedence over their own `image.registry`), which would rewrite the
-# postgres image to a registry that doesn't host it. Per-sub-chart images are pinned below.
+# Default registry prepended to first-party component images whose `repo` has no host.
+# Kept OUTSIDE `global` (so it only ever applies to first-party images): the infra
+# images (postgres, vault, nats) are pinned to their full upstream refs below.
 imageRegistry: ghcr.io
 
 # =============================================================================
-# Global settings shared across every component and sub-chart.
+# Global settings shared across every component.
 # =============================================================================
 global:
   # Target namespace. Also used as the DNS namespace segment in in-cluster FQDNs.
@@ -31,11 +30,6 @@ global:
   # Never/IfNotPresent on KinD while the rest keep pulling Always).
   imagePullPolicy: Always
   clusterDomain: svc.cluster.local
-
-  # Acknowledge the Bitnami sub-charts' image guard (they ship "Bitnami Secure Images"
-  # by default and refuse to render otherwise). Dev-only; revisit for production images.
-  security:
-    allowInsecureImages: true
 
   # HTTPRoute hostname all application routes are exposed under.
   host: jad.localhost
@@ -55,23 +49,38 @@ global:
     enabled: true
 
 # =============================================================================
-# Infrastructure. Postgres and Vault are community sub-charts; NATS is an in-chart
-# manifest (see the `nats:` block below). For the sub-charts, `connection.host: ""`
-# means "derive <release>-<subchart>.<ns>.svc.<clusterDomain>" — their community
-# services are named <release>-postgresql / <release>-vault, so every consumer must
-# resolve the host through the connection helpers, never a hardcoded name.
+# Infrastructure. Postgres, Vault and NATS are all in-chart manifests (see
+# templates/infra-glue/), not community sub-charts. `connection.host: ""` means
+# "derive <release>-<component>.<ns>.svc.<clusterDomain>" — the in-chart Services keep
+# the <release>-postgresql / <release>-vault / <release>-nats names, so every consumer
+# must resolve the host through the connection helpers, never a hardcoded name.
 # =============================================================================
 postgresql:
   enabled: true
+  # Official postgres image (same family as the postgres-init hook). Pinned to a full
+  # upstream ref so global.imageRegistry never rewrites it.
+  image: postgres:17.7-alpine
+  imagePullPolicy: IfNotPresent
   connection:
     host: ""
     port: 5432
     # Admin credentials used by the postgres-init hook to create the per-app DBs/users.
     adminUser: postgres
-    # Secret (created by the bitnami sub-chart) holding the admin password.
+    # Secret (created by the in-chart postgresql template) holding the admin password.
     adminPasswordSecret:
       name: ""            # "" => "<release>-postgresql"
       key: postgres-password
+  # Bootstrap credentials for the in-chart server: the superuser password (stored in the
+  # admin secret above) and the initial database created by the image on first start.
+  auth:
+    postgresPassword: postgres
+    database: postgres
+  # Data volume for the in-chart server. Dev default is an ephemeral emptyDir; enable
+  # persistence (a PVC) for anything that must survive a pod restart.
+  persistence:
+    enabled: false
+    size: 8Gi
+    storageClass: ""      # "" => cluster default StorageClass
   # Per-application databases/users created by the postgres-init hook.
   databases:
     - { db: controlplane,  user: cp,     password: cp }
@@ -83,34 +92,18 @@ postgresql:
     - { db: cfm,           user: cfm,    password: cfm }
     - { db: sigletdb,      user: siglet, password: siglet }
     - { db: jwtlet,        user: jwtlet, password: jwtlet }
-  # Values passed straight to the bitnami postgresql sub-chart.
-  # Bitnami relocated its free Docker Hub images: current tags now live under the
-  # paid "bitnamisecure" org, and the previously-public ones were frozen under
-  # "bitnamilegacy". Pin to bitnamilegacy so the image resolves without a subscription.
-  image:
-    registry: docker.io
-    repository: bitnamilegacy/postgresql
-  auth:
-    postgresPassword: postgres
-    database: postgres
-  primary:
-    persistence:
-      enabled: false
 
 vault:
   enabled: true
+  # Official vault image, run in dev mode by the in-chart template. Pinned to a full
+  # upstream ref so global.imageRegistry never rewrites it.
+  image: hashicorp/vault:latest
+  imagePullPolicy: IfNotPresent
   connection:
     host: ""
     port: 8200
     scheme: http
-    rootToken: root       # dev only
-  # Values passed to the hashicorp vault sub-chart (dev mode == bespoke behaviour).
-  server:
-    dev:
-      enabled: true
-      devRootToken: root
-  injector:
-    enabled: false
+    rootToken: root       # dev only; seeds the in-chart server's dev root token id
 
 nats:
   enabled: true

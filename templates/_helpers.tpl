@@ -11,10 +11,10 @@ SPDX-License-Identifier: Apache-2.0
 {{- .Values.global.namespace | default .Release.Namespace -}}
 {{- end -}}
 
-{{/* Release-name-prefixed resource name for in-chart infra (nats, telemetry stack).
-     Keeps them on the same "<release>-<component>" convention as the community
-     sub-charts (<release>-postgresql / <release>-vault) so nothing collides across
-     releases sharing a namespace. Call as: (dict "name" "nats" "ctx" $). */}}
+{{/* Release-name-prefixed resource name for in-chart infra (postgres, vault, nats,
+     telemetry stack). The "<release>-<component>" convention keeps the historical
+     <release>-postgresql / <release>-vault service names and stops resources colliding
+     across releases sharing a namespace. Call as: (dict "name" "nats" "ctx" $). */}}
 {{- define "cpd.fullname" -}}
 {{- printf "%s-%s" .ctx.Release.Name .name -}}
 {{- end -}}
@@ -32,8 +32,8 @@ SPDX-License-Identifier: Apache-2.0
 {{- end -}}
 
 {{/* -------------------------------------------------------------------------
-     Infra service hosts. `connection.host` wins; otherwise derive the
-     community sub-chart service name (<release>-postgresql / -vault / -nats).
+     Infra service hosts. `connection.host` wins; otherwise derive the in-chart
+     service name (<release>-postgresql / -vault / -nats).
      ------------------------------------------------------------------------- */}}
 {{- define "cpd.pgHost" -}}
 {{- $c := .Values.postgresql.connection -}}
@@ -62,7 +62,7 @@ SPDX-License-Identifier: Apache-2.0
 {{- printf "nats://%s:%v" (include "cpd.natsHost" .) .Values.nats.connection.port -}}
 {{- end -}}
 
-{{/* Name of the secret holding the postgres admin password (bitnami sub-chart). */}}
+{{/* Name of the secret holding the postgres admin password (in-chart postgresql template). */}}
 {{- define "cpd.pgAdminSecret" -}}
 {{- .Values.postgresql.connection.adminPasswordSecret.name | default (printf "%s-postgresql" .Release.Name) -}}
 {{- end -}}

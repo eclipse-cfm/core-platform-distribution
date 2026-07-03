@@ -17,24 +17,16 @@ description: |
   Eclipse Dataspace Hub (JAD) Core Platform Distribution — deploys the EDC connector
   components (control plane, data plane, identity hub, issuer service, siglet), the CFM
   agents and managers, and the security/gateway layer (jwtlet, clearglass, Traefik gateway).
-  Postgres, Vault and NATS are pulled in as community sub-charts.
+  Postgres, Vault and NATS are deployed as in-chart manifests.
 type: application
 version: 0.1.0
 appVersion: "latest"
 
-dependencies:
-  # --- infrastructure (enabled by default) ---------------------------------
-  - name: postgresql
-    version: "16.7.27"
-    repository: oci://registry-1.docker.io/bitnamicharts
-    condition: postgresql.enabled
-  - name: vault
-    version: "0.29.1"
-    repository: https://helm.releases.hashicorp.com
-    condition: vault.enabled
-  # NOTE: NATS is NOT a community sub-chart. It is deployed as an in-chart manifest
-  # (templates/infra-glue/nats.yaml) restored verbatim from the original raw kustomize
-  # manifest, preserving its exact nats.conf and the `-c /etc/nats/nats.conf` arg.
-  # NOTE: the observability stack (jaeger/prometheus/loki/grafana) is deployed as
-  # in-chart templates under templates/telemetry/, not as community sub-charts —
-  # their Service names must match the telemetry-config OTLP endpoints.
+# NOTE: this chart has no community sub-chart dependencies. All infrastructure is
+# deployed as in-chart manifests under templates/:
+#   - Postgres  -> templates/infra-glue/postgresql.yaml  (official postgres image)
+#   - Vault     -> templates/infra-glue/vault.yaml        (hashicorp/vault, dev mode)
+#   - NATS      -> templates/infra-glue/nats.yaml         (exact nats.conf preserved)
+#   - Telemetry -> templates/telemetry/*.yaml             (jaeger/prometheus/loki/grafana)
+# In-chart Service names are release-prefixed (<release>-postgresql / -vault / -nats) and
+# the telemetry Services match the telemetry-config OTLP endpoints.
