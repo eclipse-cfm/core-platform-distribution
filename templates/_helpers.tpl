@@ -42,7 +42,7 @@ SPDX-License-Identifier: Apache-2.0
 {{- define "cpd.natsHost" -}}
 {{- $c := .Values.nats.connection -}}
 {{- if $c.host -}}{{ $c.host -}}
-{{- else -}}{{ printf "%s-nats.%s.%s" .Release.Name (include "cpd.namespace" .) .Values.global.clusterDomain -}}{{- end -}}
+{{- else -}}{{ printf "nats.%s.%s" (include "cpd.namespace" .) .Values.global.clusterDomain -}}{{- end -}}
 {{- end -}}
 
 {{/* Convenience URL builders reused across configs and hook scripts. */}}

@@ -55,9 +55,10 @@ global:
     enabled: true
 
 # =============================================================================
-# Infrastructure sub-charts.
-# Each `connection.host: ""` means "derive <release>-<subchart>.<ns>.svc.<clusterDomain>".
-# The community services are NOT named postgres/vault/nats, so every consumer must
+# Infrastructure. Postgres and Vault are community sub-charts; NATS is an in-chart
+# manifest (see the `nats:` block below). For the sub-charts, `connection.host: ""`
+# means "derive <release>-<subchart>.<ns>.svc.<clusterDomain>" — their community
+# services are named <release>-postgresql / <release>-vault, so every consumer must
 # resolve the host through the connection helpers, never a hardcoded name.
 # =============================================================================
 postgresql:
@@ -113,22 +114,23 @@ vault:
 
 nats:
   enabled: true
+  # NATS is deployed as an in-chart manifest (templates/infra-glue/nats.yaml) restored
+  # verbatim from the original raw kustomize manifest, NOT as a community sub-chart. Its
+  # jetstream tuning lives in the mounted nats.conf inside that template (store_dir,
+  # max_memory_store 64MB, max_file_store 512MB, debug), matching the source exactly.
+  image: nats:latest
+  imagePullPolicy: IfNotPresent
   connection:
+    # host "" => derive the in-chart service FQDN "nats.<ns>.svc.<clusterDomain>".
     host: ""
     port: 4222
     monitorPort: 8222
-  # Streams created by the nats-bootstrap hook.
+  # Streams created by the nats-bootstrap job.
   streams:
     - name: edc-events
       subjects: "events.>"
       storage: memory
       retention: interest
-  # Values passed to the nats sub-chart.
-  config:
-    jetstream:
-      enabled: true
-      memoryStore:
-        enabled: true
 
 # =============================================================================
 # Telemetry (observability stack). Deployed as in-chart templates (self-contained
