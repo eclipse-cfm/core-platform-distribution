@@ -1,0 +1,117 @@
+{{- if .Values.postgresql.enabled }}
+{{- $name := include "cpd.fullname" (dict "name" "postgresql" "ctx" $) }}
+{{- $secretName := include "cpd.pgAdminSecret" . }}
+# In-chart PostgreSQL, replacing the Bitnami `postgresql` community sub-chart. A single
+# single-replica dev server on the official `postgres` image (same family as the
+# postgres-init hook, so psql/pg_isready line up). Resource names are release-prefixed
+# (<release>-postgresql) to preserve the sub-chart naming convention the connection
+# helpers derive, so no consumer wiring changes. Persistence is opt-in via
+# `postgresql.persistence.enabled`; disabled by default it uses an emptyDir (dev only).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    app: {{ $name }}
+    platform: edcv
+    type: edcv-infra
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      name: {{ $name }}
+      labels:
+        app: {{ $name }}
+        platform: edcv
+        type: edcv-infra
+    spec:
+      containers:
+        - name: postgresql
+          image: {{ .Values.postgresql.image }}
+          imagePullPolicy: {{ .Values.postgresql.imagePullPolicy }}
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.connection.adminUser | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ .Values.postgresql.connection.adminPasswordSecret.key }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.auth.database | default "postgres" | quote }}
+            # Keep PGDATA in a sub-directory of the mount so the volume root (which may
+            # carry a lost+found on real PVCs) never trips initdb's "not empty" check.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+              name: tcp-postgresql
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: [ "sh", "-c", "pg_isready -U {{ .Values.postgresql.connection.adminUser }} -d {{ .Values.postgresql.auth.database | default "postgres" }}" ]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: data
+        {{- if .Values.postgresql.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ $name }}
+        {{- else }}
+          emptyDir: { }
+        {{- end }}
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $secretName }}
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  {{ .Values.postgresql.connection.adminPasswordSecret.key }}: {{ .Values.postgresql.auth.postgresPassword | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $name }}
+  ports:
+    - name: tcp-postgresql
+      port: {{ .Values.postgresql.connection.port }}
+      targetPort: 5432
+{{- if .Values.postgresql.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.postgresql.persistence.size }}
+  {{- with .Values.postgresql.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+{{- end }}
+{{- end }}

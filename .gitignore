@@ -1,7 +1,7 @@
 # Helm
 
-# Resolved chart dependencies — pulled via `helm dependency build` from Chart.lock.
-# Keep Chart.lock committed; regenerate charts/ locally.
+# All infrastructure ships as in-chart manifests, so there are no sub-chart
+# dependencies to vendor. Ignore any locally-packaged archives regardless.
 charts/
 *.tgz
 

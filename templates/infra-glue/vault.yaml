@@ -1,0 +1,77 @@
+{{- if .Values.vault.enabled }}
+{{- $name := include "cpd.fullname" (dict "name" "vault" "ctx" $) }}
+# In-chart Vault, replacing the HashiCorp `vault` community sub-chart. Runs the official
+# `hashicorp/vault` image in dev mode (`server -dev`): an in-memory server that auto-unseals,
+# pre-mounts the `secret/` kv-v2 engine and issues a fixed root token — exactly what the
+# vault-bootstrap Job and the app configs expect. Resource names are release-prefixed
+# (<release>-vault) to preserve the sub-chart naming convention the connection helpers
+# derive, so no consumer wiring changes. Dev mode holds all state in memory (no
+# persistence): every restart wipes secrets and the vault-bootstrap Job must re-run.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    app: {{ $name }}
+    platform: edcv
+    type: edcv-infra
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      name: {{ $name }}
+      labels:
+        app: {{ $name }}
+        platform: edcv
+        type: edcv-infra
+    spec:
+      containers:
+        - name: vault
+          image: {{ .Values.vault.image }}
+          imagePullPolicy: {{ .Values.vault.imagePullPolicy }}
+          args: [ "server", "-dev" ]
+          securityContext:
+            capabilities:
+              add:
+                - IPC_LOCK
+          env:
+            - name: VAULT_DEV_ROOT_TOKEN_ID
+              value: {{ .Values.vault.connection.rootToken | quote }}
+            - name: VAULT_DEV_LISTEN_ADDRESS
+              value: 0.0.0.0:8200
+            # Point the bundled CLI (used by readiness/bootstrap) at the local listener.
+            - name: VAULT_ADDR
+              value: {{ printf "%s://127.0.0.1:%v" .Values.vault.connection.scheme .Values.vault.connection.port | quote }}
+          ports:
+            - containerPort: 8200
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /v1/sys/health
+              port: 8200
+              scheme: {{ .Values.vault.connection.scheme | upper }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $name }}
+  ports:
+    - name: http
+      port: {{ .Values.vault.connection.port }}
+      targetPort: 8200
+{{- end }}
