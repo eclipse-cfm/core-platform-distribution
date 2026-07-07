@@ -147,13 +147,19 @@ spec:
 
               # The first block contains direct (1:1) mappings for every scope checked by the
               # platform APIs (IdentityHub identity-api/issuer-admin-api, Connector management-api,
-              # CFM provision/tenant-manager APIs and Siglet management API), followed by the
-              # coarse-grained "role" scopes (read, write, admin, ...).
+              # CFM provision/tenant-manager APIs and Siglet management API), including the parent
+              # ("<api>:<action>") and resource-wildcard ("<api>:*:<action>") forms of the EDC APIs.
+              # CFM and Siglet scopes are matched verbatim, so no wildcard forms exist for them.
+              # The last block contains the coarse-grained "role" scopes (read, write, admin, ...).
               do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
                 -H "Authorization: Bearer $TOKEN" \
                 -H "Content-Type: application/json" \
                 -d '[
                   {"scope": "identity-api:admin", "claims": {"scope": "identity-api:admin"}},
+                  {"scope": "identity-api:read", "claims": {"scope": "identity-api:read"}},
+                  {"scope": "identity-api:write", "claims": {"scope": "identity-api:write"}},
+                  {"scope": "identity-api:*:read", "claims": {"scope": "identity-api:*:read"}},
+                  {"scope": "identity-api:*:write", "claims": {"scope": "identity-api:*:write"}},
                   {"scope": "identity-api:participants:read", "claims": {"scope": "identity-api:participants:read"}},
                   {"scope": "identity-api:participants:write", "claims": {"scope": "identity-api:participants:write"}},
                   {"scope": "identity-api:dids:read", "claims": {"scope": "identity-api:dids:read"}},
@@ -162,6 +168,11 @@ spec:
                   {"scope": "identity-api:keypairs:write", "claims": {"scope": "identity-api:keypairs:write"}},
                   {"scope": "identity-api:credentials:read", "claims": {"scope": "identity-api:credentials:read"}},
                   {"scope": "identity-api:credentials:write", "claims": {"scope": "identity-api:credentials:write"}},
+                  {"scope": "issuer-admin-api:admin", "claims": {"scope": "issuer-admin-api:admin"}},
+                  {"scope": "issuer-admin-api:read", "claims": {"scope": "issuer-admin-api:read"}},
+                  {"scope": "issuer-admin-api:write", "claims": {"scope": "issuer-admin-api:write"}},
+                  {"scope": "issuer-admin-api:*:read", "claims": {"scope": "issuer-admin-api:*:read"}},
+                  {"scope": "issuer-admin-api:*:write", "claims": {"scope": "issuer-admin-api:*:write"}},
                   {"scope": "issuer-admin-api:attestations:read", "claims": {"scope": "issuer-admin-api:attestations:read"}},
                   {"scope": "issuer-admin-api:attestations:write", "claims": {"scope": "issuer-admin-api:attestations:write"}},
                   {"scope": "issuer-admin-api:credentialdefinitions:read", "claims": {"scope": "issuer-admin-api:credentialdefinitions:read"}},
@@ -172,6 +183,10 @@ spec:
                   {"scope": "issuer-admin-api:holders:write", "claims": {"scope": "issuer-admin-api:holders:write"}},
                   {"scope": "issuer-admin-api:issuanceprocesses:read", "claims": {"scope": "issuer-admin-api:issuanceprocesses:read"}},
                   {"scope": "management-api:admin", "claims": {"scope": "management-api:admin"}},
+                  {"scope": "management-api:read", "claims": {"scope": "management-api:read"}},
+                  {"scope": "management-api:write", "claims": {"scope": "management-api:write"}},
+                  {"scope": "management-api:*:read", "claims": {"scope": "management-api:*:read"}},
+                  {"scope": "management-api:*:write", "claims": {"scope": "management-api:*:write"}},
                   {"scope": "management-api:agreements:read", "claims": {"scope": "management-api:agreements:read"}},
                   {"scope": "management-api:assets:read", "claims": {"scope": "management-api:assets:read"}},
                   {"scope": "management-api:assets:write", "claims": {"scope": "management-api:assets:write"}},
@@ -243,7 +258,7 @@ spec:
                 echo "ERROR: Failed to create scope mappings (HTTP $RESP_STATUS): $RESP_BODY"
                 exit 1
               fi
-              echo "✓ scope mappings created (41 direct mappings + roles: read, write, cfm-read, cfm-write, siglet-read, siglet-write, admin)"
+              echo "✓ scope mappings created (54 direct mappings + roles: read, write, cfm-read, cfm-write, siglet-read, siglet-write, admin)"
 
               echo ""
               echo "================================================"
