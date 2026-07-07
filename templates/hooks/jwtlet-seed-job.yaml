@@ -142,128 +142,108 @@ spec:
               echo "✓ mapping entries created"
 
               echo "================================================"
-              echo "Step 3: Create scope mapping entries"
+              echo "Step 3: Create scope mapping entries (batch)"
               echo "================================================"
 
+              # The first block contains direct (1:1) mappings for every scope checked by the
+              # platform APIs (IdentityHub identity-api/issuer-admin-api, Connector management-api,
+              # CFM provision/tenant-manager APIs and Siglet management API), followed by the
+              # coarse-grained "role" scopes (read, write, admin, ...).
               do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
                 -H "Authorization: Bearer $TOKEN" \
                 -H "Content-Type: application/json" \
-                -d '{
-                  "scope": "read",
-                  "claims": {
-                    "scope": "identity-api:read management-api:read issuer-admin-api:read siglet-api:read"
+                -d '[
+                  {"scope": "identity-api:admin", "claims": {"scope": "identity-api:admin"}},
+                  {"scope": "identity-api:participants:read", "claims": {"scope": "identity-api:participants:read"}},
+                  {"scope": "identity-api:participants:write", "claims": {"scope": "identity-api:participants:write"}},
+                  {"scope": "identity-api:dids:read", "claims": {"scope": "identity-api:dids:read"}},
+                  {"scope": "identity-api:dids:write", "claims": {"scope": "identity-api:dids:write"}},
+                  {"scope": "identity-api:keypairs:read", "claims": {"scope": "identity-api:keypairs:read"}},
+                  {"scope": "identity-api:keypairs:write", "claims": {"scope": "identity-api:keypairs:write"}},
+                  {"scope": "identity-api:credentials:read", "claims": {"scope": "identity-api:credentials:read"}},
+                  {"scope": "identity-api:credentials:write", "claims": {"scope": "identity-api:credentials:write"}},
+                  {"scope": "issuer-admin-api:attestations:read", "claims": {"scope": "issuer-admin-api:attestations:read"}},
+                  {"scope": "issuer-admin-api:attestations:write", "claims": {"scope": "issuer-admin-api:attestations:write"}},
+                  {"scope": "issuer-admin-api:credentialdefinitions:read", "claims": {"scope": "issuer-admin-api:credentialdefinitions:read"}},
+                  {"scope": "issuer-admin-api:credentialdefinitions:write", "claims": {"scope": "issuer-admin-api:credentialdefinitions:write"}},
+                  {"scope": "issuer-admin-api:credentials:read", "claims": {"scope": "issuer-admin-api:credentials:read"}},
+                  {"scope": "issuer-admin-api:credentials:write", "claims": {"scope": "issuer-admin-api:credentials:write"}},
+                  {"scope": "issuer-admin-api:holders:read", "claims": {"scope": "issuer-admin-api:holders:read"}},
+                  {"scope": "issuer-admin-api:holders:write", "claims": {"scope": "issuer-admin-api:holders:write"}},
+                  {"scope": "issuer-admin-api:issuanceprocesses:read", "claims": {"scope": "issuer-admin-api:issuanceprocesses:read"}},
+                  {"scope": "management-api:admin", "claims": {"scope": "management-api:admin"}},
+                  {"scope": "management-api:agreements:read", "claims": {"scope": "management-api:agreements:read"}},
+                  {"scope": "management-api:assets:read", "claims": {"scope": "management-api:assets:read"}},
+                  {"scope": "management-api:assets:write", "claims": {"scope": "management-api:assets:write"}},
+                  {"scope": "management-api:catalog:read", "claims": {"scope": "management-api:catalog:read"}},
+                  {"scope": "management-api:contractdefinitions:read", "claims": {"scope": "management-api:contractdefinitions:read"}},
+                  {"scope": "management-api:contractdefinitions:write", "claims": {"scope": "management-api:contractdefinitions:write"}},
+                  {"scope": "management-api:dataplanes:write", "claims": {"scope": "management-api:dataplanes:write"}},
+                  {"scope": "management-api:discovery:read", "claims": {"scope": "management-api:discovery:read"}},
+                  {"scope": "management-api:negotiations:read", "claims": {"scope": "management-api:negotiations:read"}},
+                  {"scope": "management-api:negotiations:write", "claims": {"scope": "management-api:negotiations:write"}},
+                  {"scope": "management-api:policies:read", "claims": {"scope": "management-api:policies:read"}},
+                  {"scope": "management-api:policies:write", "claims": {"scope": "management-api:policies:write"}},
+                  {"scope": "management-api:profiles:read", "claims": {"scope": "management-api:profiles:read"}},
+                  {"scope": "management-api:profiles:write", "claims": {"scope": "management-api:profiles:write"}},
+                  {"scope": "management-api:transfers:read", "claims": {"scope": "management-api:transfers:read"}},
+                  {"scope": "management-api:transfers:write", "claims": {"scope": "management-api:transfers:write"}},
+                  {"scope": "provision-manager-api:read", "claims": {"scope": "provision-manager-api:read"}},
+                  {"scope": "provision-manager-api:write", "claims": {"scope": "provision-manager-api:write"}},
+                  {"scope": "tenant-manager-api:read", "claims": {"scope": "tenant-manager-api:read"}},
+                  {"scope": "tenant-manager-api:write", "claims": {"scope": "tenant-manager-api:write"}},
+                  {"scope": "siglet-mgmt-api:read", "claims": {"scope": "siglet-mgmt-api:read"}},
+                  {"scope": "siglet-mgmt-api:write", "claims": {"scope": "siglet-mgmt-api:write"}},
+                  {
+                    "scope": "read",
+                    "claims": {
+                      "scope": "identity-api:read management-api:read issuer-admin-api:read siglet-api:read"
+                    }
+                  },
+                  {
+                    "scope": "write",
+                    "claims": {
+                      "scope": "identity-api:write management-api:write issuer-admin-api:write"
+                    }
+                  },
+                  {
+                    "scope": "cfm-write",
+                    "claims": {
+                      "scope": "provision-manager-api:write tenant-manager-api:write"
+                    }
+                  },
+                  {
+                    "scope": "cfm-read",
+                    "claims": {
+                      "scope": "provision-manager-api:read tenant-manager-api:read"
+                    }
+                  },
+                  {
+                    "scope": "siglet-write",
+                    "claims": {
+                      "scope": "siglet-mgmt-api:write"
+                    }
+                  },
+                  {
+                    "scope": "siglet-read",
+                    "claims": {
+                      "scope": "siglet-mgmt-api:read"
+                    }
+                  },
+                  {
+                    "scope": "admin",
+                    "claims": {
+                      "scope": "management-api:admin identity-api:admin issuer-admin-api:admin"
+                    }
                   }
-                }'
+                ]'
               if [ "$RESP_STATUS" -eq 409 ]; then
-                echo "✓ 'read' scope mapping already exists"
+                echo "✓ scope mappings already exist"
               elif [ "$RESP_STATUS" -ge 400 ]; then
-                echo "ERROR: Failed to create mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
+                echo "ERROR: Failed to create scope mappings (HTTP $RESP_STATUS): $RESP_BODY"
                 exit 1
               fi
-              echo "✓ 'read' scope mapping created"
-
-
-              do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
-                -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d '{
-                  "scope": "write",
-                  "claims": {
-                    "scope": "identity-api:write management-api:write issuer-admin-api:write"
-                  }
-                }'
-              if [ "$RESP_STATUS" -eq 409 ]; then
-                echo "✓ 'write' scope mapping already exists"
-              elif [ "$RESP_STATUS" -ge 400 ]; then
-                echo "ERROR: Failed to create scope mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
-                exit 1
-              fi
-              echo "✓ 'write' scope mapping created"
-
-              do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
-                -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d '{
-                  "scope": "cfm-write",
-                  "claims": {
-                    "scope": "provision-manager-api:write tenant-manager-api:write"
-                  }
-                }'
-              if [ "$RESP_STATUS" -eq 409 ]; then
-                echo "✓ 'cfm-write' scope mapping already exists"
-              elif [ "$RESP_STATUS" -ge 400 ]; then
-                echo "ERROR: Failed to create scope mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
-                exit 1
-              fi
-              echo "✓ 'CFM API write' scope mapping created"
-
-              do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
-                -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d '{
-                  "scope": "cfm-read",
-                  "claims": {
-                    "scope": "provision-manager-api:read tenant-manager-api:read"
-                  }
-                }'
-              if [ "$RESP_STATUS" -eq 409 ]; then
-                echo "✓ 'cfm-read' scope mapping already exists"
-              elif [ "$RESP_STATUS" -ge 400 ]; then
-                echo "ERROR: Failed to create scope mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
-                exit 1
-              fi
-              echo "✓ 'CFM API read' scope mapping created"
-
-               do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
-                -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d '{
-                  "scope": "siglet-write",
-                  "claims": {
-                    "scope": "siglet-mgmt-api:write"
-                  }
-                }'
-              if [ "$RESP_STATUS" -eq 409 ]; then
-                echo "✓ 'siglet-write' scope mapping already exists"
-              elif [ "$RESP_STATUS" -ge 400 ]; then
-                echo "ERROR: Failed to create scope mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
-                exit 1
-              fi
-              echo "✓ 'Siglet Mgmt API write' scope mapping created"
-
-              do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
-                -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d '{
-                  "scope": "siglet-read",
-                  "claims": {
-                    "scope": "siglet-mgmt-api:read"
-                  }
-                }'
-              if [ "$RESP_STATUS" -eq 409 ]; then
-                echo "✓ 'siglet-read' scope mapping already exists"
-              elif [ "$RESP_STATUS" -ge 400 ]; then
-                echo "ERROR: Failed to create scope mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
-                exit 1
-              fi
-              echo "✓ 'Siglet Mgmt API read' scope mapping created"
-
-              do_curl -X POST "${JWTLET_MGMT_URL}/scopes" \
-                -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d '{
-                  "scope": "admin",
-                  "claims": {
-                    "scope": "management-api:admin identity-api:admin issuer-admin-api:admin"
-                  }
-                }'
-              if [ "$RESP_STATUS" -eq 409 ]; then
-                echo "✓ 'admin' role scope mapping already exists"
-              elif [ "$RESP_STATUS" -ge 400 ]; then
-                echo "ERROR: Failed to create scope mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
-                exit 1
-              fi
-              echo "✓ 'admin' role scope mapping created"
+              echo "✓ scope mappings created (41 direct mappings + roles: read, write, cfm-read, cfm-write, siglet-read, siglet-write, admin)"
 
               echo ""
               echo "================================================"
