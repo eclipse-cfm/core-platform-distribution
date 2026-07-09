@@ -117,7 +117,7 @@ spec:
             - name: SIGLET__TOKEN__ISSUER
               value: "siglet-issuer"
             - name: SIGLET__TOKEN__REFRESH_ENDPOINT
-              value: {{ printf "http://%s:8082/token/refresh" (include "cpd.fqdn" (dict "svc" "siglet" "ctx" $)) | quote }}
+              value: {{ printf "http://%s:8082/token" (include "cpd.fqdn" (dict "svc" "siglet" "ctx" $)) | quote }}
           volumeMounts:
             - name: siglet-config
               mountPath: /config

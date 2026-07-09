@@ -27,11 +27,14 @@ data:
     [storage_backend]
     type = "postgres-vault"
     url = "postgresql://siglet:siglet@{{ include "cpd.pgHost" . }}:{{ .Values.postgresql.connection.port }}/sigletdb"
+    {{- range .Values.edc.siglet.transferTypes }}
     [[transfer_types]]
-    transfer_type = "HttpData-PULL"
-    endpoint_type = "HTTP"
-    endpoint = "http://provider:8080/data"
-    token_source = "provider"
+    transfer_type = "{{ .transferType }}"
+    endpoint_type = "{{ .endpointType }}"
+    endpoint = "{{ .endpoint }}"
+    token_source = "{{ .tokenSource }}"
+    tx_renewal_support = {{ .txRenewalSupport }}
+    {{- end }}
     [signaling_auth]
     mode = "disabled"
     [management_api_auth]

@@ -68,7 +68,7 @@ postgresql:
     adminUser: postgres
     # Secret (created by the in-chart postgresql template) holding the admin password.
     adminPasswordSecret:
-      name: ""            # "" => "<release>-postgresql"
+      name: "" # "" => "<release>-postgresql"
       key: postgres-password
   # Bootstrap credentials for the in-chart server: the superuser password (stored in the
   # admin secret above) and the initial database created by the image on first start.
@@ -80,18 +80,18 @@ postgresql:
   persistence:
     enabled: false
     size: 8Gi
-    storageClass: ""      # "" => cluster default StorageClass
+    storageClass: "" # "" => cluster default StorageClass
   # Per-application databases/users created by the postgres-init hook.
   databases:
-    - { db: controlplane,  user: cp,     password: cp }
-    - { db: identityhub,   user: ih,     password: ih }
+    - { db: controlplane, user: cp, password: cp }
+    - { db: identityhub, user: ih, password: ih }
     - { db: issuerservice, user: issuer, password: issuer }
     # Consumed by the dataplane, which now ships in the jad-dataspace-profile chart;
     # postgres lives here so its database is still provisioned by this hook.
-    - { db: dataplane,     user: dp,     password: dp }
-    - { db: cfm,           user: cfm,    password: cfm }
-    - { db: sigletdb,      user: siglet, password: siglet }
-    - { db: jwtlet,        user: jwtlet, password: jwtlet }
+    - { db: dataplane, user: dp, password: dp }
+    - { db: cfm, user: cfm, password: cfm }
+    - { db: sigletdb, user: siglet, password: siglet }
+    - { db: jwtlet, user: jwtlet, password: jwtlet }
 
 vault:
   enabled: true
@@ -103,7 +103,7 @@ vault:
     host: ""
     port: 8200
     scheme: http
-    rootToken: root       # dev only; seeds the in-chart server's dev root token id
+    rootToken: root # dev only; seeds the in-chart server's dev root token id
 
 nats:
   enabled: true
@@ -151,7 +151,7 @@ telemetry:
 
   jaeger:
     enabled: true
-    image: jaegertracing/all-in-one:1.62.0  # 1.62.0: latest has UI theming issues
+    image: jaegertracing/all-in-one:1.62.0 # 1.62.0: latest has UI theming issues
     host: jaeger.localhost
   prometheus:
     enabled: true
@@ -255,6 +255,14 @@ edc:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Transfer types written into siglet.toml as [[transfer_types]] blocks.
+    # Override this list to change/add transfer profiles per deployment.
+    transferTypes:
+      - transferType: "https://w3id.org/dspace-sig/profile/http-pull"
+        endpointType: "https://w3id.org/dspace-sig/profile/http-pull"
+        endpoint: "http://provider:8080/data"
+        tokenSource: "provider"
+        txRenewalSupport: false
 
 # =============================================================================
 # CFM application components.
