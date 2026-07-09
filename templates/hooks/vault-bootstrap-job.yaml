@@ -122,8 +122,15 @@ spec:
               # link env var: that var is only injected for services in the pod's own
               # namespace, so it is empty for pods outside `default` and would yield an
               # invalid kubernetes_host (https://:443) -> every k8s-auth login 403s.
+              #
+              # No token_reviewer_jwt: on Kubernetes >=1.21 the bootstrap pod's mounted SA
+              # token is a bound, short-lived token that Kubernetes invalidates once this
+              # Job pod is deleted. Storing it here made every later TokenReview fail with
+              # "service account token has been invalidated". With it omitted, Vault uses
+              # its OWN pod's SA token (the Vault Deployment runs as vault-auth, bound to
+              # the tokenreviews ClusterRole) to call TokenReview -- kubelet-rotated and
+              # valid for the pod's lifetime, so it never goes stale.
               vault write auth/kubernetes/config \
-                token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
                 kubernetes_host="https://kubernetes.default.svc:443" \
                 kubernetes_ca_cert="$(cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt)"
 

@@ -30,6 +30,11 @@ spec:
         platform: edcv
         type: edcv-infra
     spec:
+      # Run as vault-auth (bound to the tokenreviews ClusterRole in rbac.yaml). With no
+      # static token_reviewer_jwt in auth/kubernetes/config, Vault uses its OWN pod SA
+      # token to call the TokenReview API, so that SA must be allowed to create
+      # tokenreviews. This token is kubelet-rotated and valid for the pod's whole life.
+      serviceAccountName: vault-auth
       containers:
         - name: vault
           image: {{ .Values.vault.image }}
