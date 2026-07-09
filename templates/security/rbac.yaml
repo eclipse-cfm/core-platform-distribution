@@ -15,7 +15,9 @@ rules:
   verbs:
   - create
 ---
-# Vault needs TokenReview to verify SA tokens for its Kubernetes auth method
+# Vault's Kubernetes auth method calls TokenReview using Vault's own pod SA token
+# (no static token_reviewer_jwt is configured), so the Vault Deployment runs as
+# vault-auth and vault-auth is granted tokenreviews here.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
