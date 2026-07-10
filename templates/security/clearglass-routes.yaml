@@ -1,0 +1,21 @@
+{{- if .Values.security.clearglass.enabled }}
+#  Copyright (c) 2026 Metaform Systems, Inc
+#  SPDX-License-Identifier: Apache-2.0
+
+# Route→scope map consumed by clearglass (ROUTES_FILE). Assembled from
+# `security.clearglass.routeMap`: profile-specific `extraRules` come first
+# (rules are first-match-wins), then the platform `rules`.
+{{- $rm := .Values.security.clearglass.routeMap }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clearglass-routes
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+data:
+  routes.yaml: |
+    default: {{ $rm.default }}
+    routes:
+      {{- concat ($rm.extraRules | default list) ($rm.rules | default list) | toYaml | nindent 6 }}
+{{- end }}

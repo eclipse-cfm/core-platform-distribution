@@ -190,6 +190,254 @@ security:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Static route→scope map evaluated by clearglass against X-Forwarded-Method /
+    # X-Forwarded-Uri on every /validate call. Rules are first-match-wins, so keep
+    # them most-specific-first; `anyOf` names the NARROWEST sufficient scope — wider
+    # tokens (api-level, `<api>:*:<action>`, higher action) pass via implication
+    # (admin ⊇ write ⊇ read). `*` = one segment, `**` (final only) = remainder.
+    #
+    # IMPORTANT: Traefik executes the forward-auth middleware AFTER the HTTPRoute
+    # URLRewrite, so X-Forwarded-Uri carries the REWRITTEN backend path (verified
+    # from report-only logs): /api/mgmt/v5beta/..., /api/identity/v1beta/...,
+    # /api/admin/v1beta/..., /api/v1alpha1/... (tenant + provision manager share
+    # this prefix and are disambiguated by resource name), and siglet paths with
+    # the /api/siglet prefix stripped entirely (e.g. /tokens/...).
+    routeMap:
+      # false = report-only: violations are only logged ("report-only: ... would be
+      # denied"), the legacy per-middleware ?scope= checks still decide. Flip to true
+      # only after a clean soak (phase 3).
+      enforce: true
+      # applies when no rule matches: deny | allow
+      default: deny
+      # dataspace-profile-specific rules, evaluated BEFORE `rules` (first match wins)
+      extraRules: []
+      rules:
+        # --- IdentityHub Identity API (backend /api/identity/v1beta/...) ---
+        - path: /api/identity/*/participants/*/dids/**
+          methods: [GET]
+          anyOf: [identity-api:dids:read]
+        - path: /api/identity/*/participants/*/dids/**
+          methods: [POST, PUT, DELETE]
+          anyOf: [identity-api:dids:write]
+        - path: /api/identity/*/participants/*/keypairs/**
+          methods: [GET]
+          anyOf: [identity-api:keypairs:read]
+        - path: /api/identity/*/participants/*/keypairs/**
+          methods: [POST, PUT, DELETE]
+          anyOf: [identity-api:keypairs:write]
+        - path: /api/identity/*/participants/*/credentials/**
+          methods: [GET]
+          anyOf: [identity-api:credentials:read]
+        - path: /api/identity/*/participants/*/credentials/**
+          methods: [POST, PUT, DELETE]
+          anyOf: [identity-api:credentials:write]
+        - path: /api/identity/*/participants/**
+          methods: [GET]
+          anyOf: [identity-api:participants:read]
+        - path: /api/identity/*/participants/**
+          methods: [POST, PUT, DELETE]
+          anyOf: [identity-api:participants:write]
+        - path: /api/identity/*/dids/**
+          methods: [GET, POST]
+          anyOf: [identity-api:dids:read]
+        # fallback for unmapped identity-api paths (narrow tokens will NOT pass here —
+        # report-only logs reveal which paths need dedicated rules)
+        - path: /api/identity/**
+          methods: [GET]
+          anyOf: [identity-api:read]
+        - path: /api/identity/**
+          anyOf: [identity-api:write]
+
+        # --- Control plane Management API (backend /api/mgmt/v5beta/...) ---
+        # participant context lifecycle & config are admin operations
+        - path: /api/mgmt/*/participants
+          methods: [POST]
+          anyOf: [management-api:admin]
+        - path: /api/mgmt/*/participants/*
+          methods: [DELETE]
+          anyOf: [management-api:admin]
+        - path: /api/mgmt/*/participants/*/config
+          methods: [PATCH, PUT]
+          anyOf: [management-api:admin]
+        # catalog is read-only (POST .../catalog/request and .../catalog/dataset/request are queries)
+        - path: /api/mgmt/*/participants/*/catalog/**
+          methods: [GET, POST]
+          anyOf: [management-api:catalog:read]
+        # EDC query convention: POST /<resource>/request is a READ
+        - path: /api/mgmt/*/participants/*/assets/request
+          methods: [POST]
+          anyOf: [management-api:assets:read]
+        - path: /api/mgmt/*/participants/*/assets/**
+          methods: [GET]
+          anyOf: [management-api:assets:read]
+        - path: /api/mgmt/*/participants/*/assets/**
+          methods: [POST, PUT, DELETE]
+          anyOf: [management-api:assets:write]
+        - path: /api/mgmt/*/participants/*/policydefinitions/request
+          methods: [POST]
+          anyOf: [management-api:policies:read]
+        - path: /api/mgmt/*/participants/*/policydefinitions/**
+          methods: [GET]
+          anyOf: [management-api:policies:read]
+        - path: /api/mgmt/*/participants/*/policydefinitions/**
+          methods: [POST, PUT, DELETE]
+          anyOf: [management-api:policies:write]
+        - path: /api/mgmt/*/participants/*/contractdefinitions/request
+          methods: [POST]
+          anyOf: [management-api:contractdefinitions:read]
+        - path: /api/mgmt/*/participants/*/contractdefinitions/**
+          methods: [GET]
+          anyOf: [management-api:contractdefinitions:read]
+        - path: /api/mgmt/*/participants/*/contractdefinitions/**
+          methods: [POST, PUT, DELETE]
+          anyOf: [management-api:contractdefinitions:write]
+        - path: /api/mgmt/*/participants/*/contractnegotiations/request
+          methods: [POST]
+          anyOf: [management-api:negotiations:read]
+        - path: /api/mgmt/*/participants/*/contractnegotiations/**
+          methods: [GET]
+          anyOf: [management-api:negotiations:read]
+        - path: /api/mgmt/*/participants/*/contractnegotiations/**
+          methods: [POST]
+          anyOf: [management-api:negotiations:write]
+        - path: /api/mgmt/*/participants/*/contractagreements/**
+          methods: [GET, POST]
+          anyOf: [management-api:agreements:read]
+        - path: /api/mgmt/*/participants/*/transferprocesses/request
+          methods: [POST]
+          anyOf: [management-api:transfers:read]
+        - path: /api/mgmt/*/participants/*/transferprocesses/**
+          methods: [GET]
+          anyOf: [management-api:transfers:read]
+        - path: /api/mgmt/*/participants/*/transferprocesses/**
+          methods: [POST]
+          anyOf: [management-api:transfers:write]
+        - path: /api/mgmt/*/participants/*/dataplanes/**
+          methods: [GET]
+          anyOf: [management-api:read]
+        - path: /api/mgmt/*/participants/*/dataplanes/**
+          methods: [POST, PUT, DELETE]
+          anyOf: [management-api:dataplanes:write]
+        # fallback for unmapped management-api paths (celexpressions, discovery,
+        # profiles, ... — refine from report-only logs)
+        - path: /api/mgmt/**
+          methods: [GET]
+          anyOf: [management-api:read]
+        - path: /api/mgmt/**
+          anyOf: [management-api:write]
+
+        # --- IssuerService Issuer Admin API (backend /api/admin/v1beta/...) ---
+        - path: /api/admin/*/participants/*/holders/**
+          methods: [GET]
+          anyOf: [issuer-admin-api:holders:read]
+        - path: /api/admin/*/participants/*/holders/**
+          methods: [POST, PUT, DELETE]
+          anyOf: [issuer-admin-api:holders:write]
+        - path: /api/admin/*/participants/*/credentials/query
+          methods: [POST]
+          anyOf: [issuer-admin-api:credentials:read]
+        - path: /api/admin/*/participants/*/credentials/**
+          methods: [GET]
+          anyOf: [issuer-admin-api:credentials:read]
+        - path: /api/admin/*/participants/*/credentials/**
+          methods: [POST, PUT, DELETE]
+          anyOf: [issuer-admin-api:credentials:write]
+        - path: /api/admin/*/participants/*/attestations/**
+          methods: [GET]
+          anyOf: [issuer-admin-api:attestations:read]
+        - path: /api/admin/*/participants/*/attestations/**
+          methods: [POST, PUT, DELETE]
+          anyOf: [issuer-admin-api:attestations:write]
+        - path: /api/admin/*/participants/*/credentialdefinitions/**
+          methods: [GET]
+          anyOf: [issuer-admin-api:credentialdefinitions:read]
+        - path: /api/admin/*/participants/*/credentialdefinitions/**
+          methods: [POST, PUT, DELETE]
+          anyOf: [issuer-admin-api:credentialdefinitions:write]
+        - path: /api/admin/*/participants/*/issuanceprocesses/**
+          methods: [GET, POST]
+          anyOf: [issuer-admin-api:issuanceprocesses:read]
+        # fallback for unmapped issuer-admin-api paths
+        - path: /api/admin/**
+          methods: [GET]
+          anyOf: [issuer-admin-api:read]
+        - path: /api/admin/**
+          anyOf: [issuer-admin-api:write]
+
+        # --- CFM Tenant Manager + Provision Manager (both rewrite to /api/v1alpha1;
+        # disambiguated by resource name; POST .../query endpoints are READs) ---
+        # Tenant Manager: tenants, cells, dataspace-profiles, participant-profiles
+        - path: /api/v1alpha1/tenants/query
+          methods: [POST]
+          anyOf: [tenant-manager-api:read]
+        - path: /api/v1alpha1/tenants/*/participant-profiles/**
+          methods: [GET]
+          anyOf: [tenant-manager-api:read]
+        - path: /api/v1alpha1/tenants/*/participant-profiles/**
+          methods: [POST, PATCH, DELETE]
+          anyOf: [tenant-manager-api:write]
+        - path: /api/v1alpha1/tenants/**
+          methods: [GET]
+          anyOf: [tenant-manager-api:read]
+        - path: /api/v1alpha1/tenants/**
+          methods: [POST, PATCH, DELETE]
+          anyOf: [tenant-manager-api:write]
+        - path: /api/v1alpha1/cells/**
+          methods: [GET]
+          anyOf: [tenant-manager-api:read]
+        - path: /api/v1alpha1/cells/**
+          methods: [POST, PATCH, DELETE]
+          anyOf: [tenant-manager-api:write]
+        - path: /api/v1alpha1/dataspace-profiles/**
+          methods: [GET]
+          anyOf: [tenant-manager-api:read]
+        - path: /api/v1alpha1/dataspace-profiles/**
+          methods: [POST, PATCH, DELETE]
+          anyOf: [tenant-manager-api:write]
+        - path: /api/v1alpha1/participant-profiles/query
+          methods: [POST]
+          anyOf: [tenant-manager-api:read]
+        - path: /api/v1alpha1/participant-profiles/**
+          methods: [GET]
+          anyOf: [tenant-manager-api:read]
+        - path: /api/v1alpha1/participant-profiles/**
+          methods: [POST, PATCH, DELETE]
+          anyOf: [tenant-manager-api:write]
+        # Provision Manager: activity-definitions, orchestration-definitions, orchestrations
+        - path: /api/v1alpha1/orchestrations/query
+          methods: [POST]
+          anyOf: [provision-manager-api:read]
+        - path: /api/v1alpha1/orchestrations/**
+          methods: [GET]
+          anyOf: [provision-manager-api:read]
+        - path: /api/v1alpha1/orchestrations/**
+          methods: [POST, DELETE]
+          anyOf: [provision-manager-api:write]
+        - path: /api/v1alpha1/activity-definitions/**
+          methods: [GET]
+          anyOf: [provision-manager-api:read]
+        - path: /api/v1alpha1/activity-definitions/**
+          methods: [POST, DELETE]
+          anyOf: [provision-manager-api:write]
+        - path: /api/v1alpha1/orchestration-definitions/**
+          methods: [GET]
+          anyOf: [provision-manager-api:read]
+        - path: /api/v1alpha1/orchestration-definitions/**
+          methods: [POST, DELETE]
+          anyOf: [provision-manager-api:write]
+
+        # --- Siglet (backend prefix stripped: /api/siglet/... -> /...; middleware
+        # historically required siglet-api:read while enforcement and jwtlet seeding
+        # use siglet-mgmt-api — accept both until the naming is unified) ---
+        - path: /tokens/**
+          methods: [GET]
+          anyOf: [siglet-mgmt-api:read, siglet-api:read]
+        - path: /key-mappings/**
+          methods: [GET]
+          anyOf: [siglet-mgmt-api:read, siglet-api:read]
+        - path: /key-mappings/**
+          methods: [POST, PUT, DELETE]
+          anyOf: [siglet-mgmt-api:write, siglet-api:write]
   jwtlet:
     enabled: true
     image:
