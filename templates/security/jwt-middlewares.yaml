@@ -1,5 +1,23 @@
 {{- if .Values.security.jwtlet.enabled }}
 {{- $addr := printf "http://%s:8080/validate" (include "cpd.fqdn" (dict "svc" "clearglass" "ctx" $)) -}}
+---
+# Unified scope-less middleware: clearglass derives the scope requirements from
+# its route map (X-Forwarded-Method/-Uri) instead of ?scope= params. HTTPRoutes
+# switch to this middleware once the route map is enforced (ENFORCE_ROUTES=true);
+# the per-API `jwt-auth-<name>` middlewares below are removed at that point.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: jwt-auth
+  namespace: {{ include "cpd.namespace" $ }}
+  labels:
+    {{- include "cpd.labels" $ | nindent 4 }}
+spec:
+  forwardAuth:
+    address: {{ $addr }}
+    authRequestHeaders:
+      - Authorization
+    trustForwardHeader: true
 {{- range .Values.security.middlewares }}
 {{- $q := list -}}
 {{- range .scopes }}{{- $q = append $q (printf "scope=%s" .) -}}{{- end }}

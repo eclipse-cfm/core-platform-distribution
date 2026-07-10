@@ -107,7 +107,7 @@ spec:
                 -d '{
                     "clientIdentifier": "system:serviceaccount:{{ include "cpd.namespace" . }}:redline",
                     "participantContext": "redline",
-                    "scopes": ["read","write", "cfm-read","cfm-write", "admin"],
+                    "scopes": ["read","write", "cfm-read","cfm-write", "admin", "provision-manager-api:read", "provision-manager-api:write", "tenant-manager-api:read", "tenant-manager-api:write"],
                     "audiences": ["{{ .Values.global.tokenExchangeAudience }}"]
                 }'
               if [ "$RESP_STATUS" -eq 409 ]; then

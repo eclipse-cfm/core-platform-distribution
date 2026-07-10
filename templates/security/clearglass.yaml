@@ -22,6 +22,9 @@ spec:
         app: clearglass
         platform: edcv
         type: edcv-infra
+      annotations:
+        # roll the pods when the route map changes
+        checksum/routes: {{ include (print $.Template.BasePath "/security/clearglass-routes.yaml") . | sha256sum }}
     spec:
       containers:
         - name: clearglass
@@ -33,6 +36,14 @@ spec:
           env:
             - name: JWKS_URL
               value: {{ printf "http://%s:8080/.well-known/jwks.json" (include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $)) }}
+            - name: ROUTES_FILE
+              value: /etc/clearglass/routes.yaml
+            - name: ENFORCE_ROUTES
+              value: {{ $c.routeMap.enforce | quote }}
+          volumeMounts:
+            - name: routes
+              mountPath: /etc/clearglass
+              readOnly: true
           livenessProbe:
             httpGet:
               path: /healthz
@@ -49,6 +60,10 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      volumes:
+        - name: routes
+          configMap:
+            name: clearglass-routes
       restartPolicy: Always
 ---
 apiVersion: v1

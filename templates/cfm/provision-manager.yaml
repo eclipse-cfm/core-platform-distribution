@@ -89,11 +89,13 @@ spec:
             path:
               type: ReplacePrefixMatch
               replacePrefixMatch: /api/v1alpha1
+{{- if and .Values.global.authEnabled .Values.security.clearglass.enabled .Values.cfm.provisionManager.authEnabled }}
         - type: ExtensionRef
           extensionRef:
             group: traefik.io
             kind: Middleware
             name: jwt-auth-provision-manager-api
+{{- end }}
       backendRefs:
         - name: provision-manager
           port: 8080
