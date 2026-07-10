@@ -204,11 +204,13 @@ spec:
             path:
               type: ReplacePrefixMatch
               replacePrefixMatch: /
+{{- if and .Values.global.authEnabled .Values.security.clearglass.enabled .Values.edc.siglet.authEnabled }}
         - type: ExtensionRef
           extensionRef:
             group: traefik.io
             kind: Middleware
             name: jwt-auth-siglet-api
+{{- end }}
       backendRefs:
         - name: siglet
           port: 8080
