@@ -494,6 +494,16 @@ edc:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Scope mappings rendered into the ih-config ConfigMap as
+    # edc.identityhub.scope.<name>.{pattern,leftoperand,operator,rightoperand} keys.
+    # Empty by default; override (typically in an extension) to add scopes, e.g.:
+    #   scopes:
+    #     - name: membership
+    #       pattern: "org\.eclipse\.custom\.vc\.type:(.+):(read|\*|all)"
+    #       leftOperand: "verifiableCredential.credential.type"
+    #       operator: "contains"
+    #       rightOperand: "$1"
+    scopes: []
   issuerservice:
     enabled: true
     # Clearglass forward-auth (jwt-auth-issuer-admin-api) on the HTTPRoute; see edc.controlplane.authEnabled.

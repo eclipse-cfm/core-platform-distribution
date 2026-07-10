@@ -59,4 +59,11 @@ data:
   edc.events.nats.stream: "edc-events"
   edc.events.nats.stream.create: "false"
   edc.events.nats.stream.create.force: "false"
+
+{{- range $c.scopes }}
+  edc.identityhub.scope.{{ .name }}.pattern: {{ .pattern | quote }}
+  edc.identityhub.scope.{{ .name }}.leftoperand: {{ .leftOperand | quote }}
+  edc.identityhub.scope.{{ .name }}.operator: {{ .operator | quote }}
+  edc.identityhub.scope.{{ .name }}.rightOperand: {{ .rightOperand | quote }}
+{{- end }}
 {{- end }}
