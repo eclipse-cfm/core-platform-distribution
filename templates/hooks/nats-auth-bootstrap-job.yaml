@@ -123,8 +123,10 @@ spec:
               # Seeds live in Vault under secret/nats/<component>.
               authorization {
                 users [
-                  # controlplane (SA: controlplane)
-                  { nkey: "$CP_PUB", permissions: { publish: ["events.>", "\$JS.API.>", "\$JS.ACK.>"], subscribe: ["events.>", "_INBOX.>"] } }
+                  # controlplane (SA: controlplane): domain events plus the negotiation /
+                  # transfer task subjects (cn-stream / tp-stream) used by its NATS task
+                  # publisher and subscriber extensions.
+                  { nkey: "$CP_PUB", permissions: { publish: ["events.>", "negotiations.>", "transfers.>", "\$JS.API.>", "\$JS.ACK.>"], subscribe: ["events.>", "negotiations.>", "transfers.>", "_INBOX.>"] } }
                   # identityhub (SA: identityhub)
                   { nkey: "$IH_PUB", permissions: { publish: ["events.>", "\$JS.API.>"], subscribe: ["_INBOX.>"] } }
                   # issuerservice (SA: issuerservice)

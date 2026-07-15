@@ -124,9 +124,9 @@ Permissions are defined per user in `users.conf`. They are intentionally coarse 
 (JetStream consumers need the `$JS.API.>` request subjects and `_INBOX.>` for replies) and are
 expected to be tightened once subject usage is confirmed:
 
-| User            | Publish                                                 | Subscribe                                            |
-|-----------------|---------------------------------------------------------|------------------------------------------------------|
-| `controlplane`  | `events.>`, `$JS.API.>`, `$JS.ACK.>`                    | `events.>`, `_INBOX.>`                               |
+| User            | Publish                                                                | Subscribe                                             |
+|-----------------|------------------------------------------------------------------------|-------------------------------------------------------|
+| `controlplane`  | `events.>`, `negotiations.>`, `transfers.>`, `$JS.API.>`, `$JS.ACK.>`  | `events.>`, `negotiations.>`, `transfers.>`, `_INBOX.>` |
 | `identityhub`   | `events.>`, `$JS.API.>`                                 | `_INBOX.>`                                           |
 | `issuerservice` | `events.>`, `$JS.API.>`                                 | `_INBOX.>`                                           |
 | `cfm-agents`    | `event.>`, `$KV.cfm-bucket.>`, `$JS.API.>`, `$JS.ACK.>` | `event.>`, `events.>`, `$KV.cfm-bucket.>`, `_INBOX.>` |
