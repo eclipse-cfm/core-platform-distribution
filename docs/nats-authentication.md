@@ -51,8 +51,10 @@ suffixed, runs concurrently with `helm install --wait`) performs the one-time ke
    keypair with `nk -gen user` and write the seed there. Existing seeds are never overwritten,
    so keys are stable across upgrades.
 2. Render the `users.conf` fragment (public keys + permissions) and apply it as the
-   `<release>-nats-auth` Secret. The job runs as the `seed-jobs` service account, which holds
-   a Role allowing it to create/update that Secret.
+   `<release>-nats-auth` Secret, owner-referenced to the NATS Deployment and followed by a
+   checksum stamp on the Deployment's pod template (see Operations → Secret lifecycle). The
+   job runs as the `seed-jobs` service account, which holds a Role allowing it to
+   create/update that Secret and to patch the Deployment.
 
 The NATS server mounts the Secret and includes it from `nats.conf`:
 
@@ -98,12 +100,21 @@ nothing but NATS itself.
 
 The runtimes reference the seed file by path:
 
-- **EDC runtimes** — `edc.nats.auth.nkey.seed.path: /vault/secrets/nats.nk` (resolved by the
-  NATS extensions into a jnats NKey auth handler).
-- **CFM agents/managers** — `nkeySeedFile: /vault/secrets/nats.nk` next to the existing `uri`
-  (wired to `nats.NkeyOptionFromSeed`).
+- **CFM agents/managers** — native support via `common/natsclient` (the same
+  `AuthFromConfig` path is used by all launchers: the orchestration agents, kmagent,
+  tenant manager and provision manager). Configured in each component's `.env` config:
+
+  ```
+  nats.auth.method: nkey
+  nats.auth.nkeySeedFile: /vault/secrets/nats.nk
+  ```
+
 - **`nats-bootstrap` job** — the `nats` CLI's built-in `--nkey /vault/secrets/nats.nk` flag;
   no code involved.
+- **EDC runtimes** — pending: the `events-nats` extension currently only knows
+  `edc.events.nats.url`/`.stream*`. The chart already ships the seed and the (forward-looking)
+  `edc.nats.auth.nkey.seed.path` setting; until upstream NKey support lands, the EDC runtimes
+  can only reach NATS while the `no_auth_user` bridge (below) is enabled.
 
 ## Permissions
 
@@ -111,13 +122,17 @@ Permissions are defined per user in `users.conf`. They are intentionally coarse 
 (JetStream consumers need the `$JS.API.>` request subjects and `_INBOX.>` for replies) and are
 expected to be tightened once subject usage is confirmed:
 
-| User            | Publish                                               | Subscribe                               |
-|-----------------|-------------------------------------------------------|-----------------------------------------|
-| `controlplane`  | `events.>`, `$JS.API.>`, `$JS.ACK.>`                  | `events.>`, `_INBOX.>`                  |
-| `identityhub`   | `events.>`, `$JS.API.>`                               | `_INBOX.>`                              |
-| `issuerservice` | `events.>`, `$JS.API.>`                               | `_INBOX.>`                              |
-| `cfm-agents`    | `cfm.>`, `$KV.cfm-bucket.>`, `$JS.API.>`, `$JS.ACK.>` | `cfm.>`, `$KV.cfm-bucket.>`, `_INBOX.>` |
-| `nats-admin`    | `>`                                                   | `>`                                     |
+| User            | Publish                                                 | Subscribe                                            |
+|-----------------|---------------------------------------------------------|------------------------------------------------------|
+| `controlplane`  | `events.>`, `$JS.API.>`, `$JS.ACK.>`                    | `events.>`, `_INBOX.>`                               |
+| `identityhub`   | `events.>`, `$JS.API.>`                                 | `_INBOX.>`                                           |
+| `issuerservice` | `events.>`, `$JS.API.>`                                 | `_INBOX.>`                                           |
+| `cfm-agents`    | `event.>`, `$KV.cfm-bucket.>`, `$JS.API.>`, `$JS.ACK.>` | `event.>`, `events.>`, `$KV.cfm-bucket.>`, `_INBOX.>` |
+| `nats-admin`    | `>`                                                     | `>`                                                  |
+
+Note the singular `event.>` for the CFM components: `cfm-stream` carries `event.*` subjects
+(the `CFMSubjectPrefix` in `common/natsclient/stream.go`). `events.>` (plural) is additionally
+granted because the key-management agent consumes the shared `edc-events` stream.
 
 All users live in the default (`$G`) account: the components deliberately share the
 `edc-events` stream, so NATS accounts (which isolate subject spaces entirely) would only add
@@ -142,13 +157,28 @@ connections still bind as `legacy`. Once none do, the bridge is disabled via val
 (`nats.auth.allowLegacy: false`), and unauthenticated connections are refused. This mirrors
 the report-only rollout used for clearglass scope enforcement.
 
+Current state: the CFM components and the `nats-bootstrap` job authenticate with NKeys; the
+EDC runtimes do not yet. With the bridge disabled (the chart default), EDC event publishing
+is unavailable until upstream `events-nats` NKey support lands — re-enable
+`nats.auth.allowLegacy` if EDC eventing is needed in the interim.
+
 ## Operations
 
 **Rotating a component's key** — delete `secret/nats/<component>` in Vault, re-run the
-`nats-auth-bootstrap` job (any `helm upgrade` does this), reload/restart the NATS server to
-pick up the new `users.conf`, then restart the component's pods so the init container fetches
-the new seed. Rotation is an operational procedure, not an automatic mechanism — an accepted
-trade-off of static NKeys in exchange for having no auth service or Vault on the connect path.
+`nats-auth-bootstrap` job (any `helm upgrade` does this), then restart the component's pods so
+the init container fetches the new seed. The NATS server restart is automatic: the job stamps
+the users.conf checksum onto the NATS Deployment's pod template, so any content change rolls
+the server (an unchanged checksum is a no-op). Rotation remains an operational procedure, not
+an automatic mechanism — an accepted trade-off of static NKeys in exchange for having no auth
+service or Vault on the connect path.
+
+**Secret lifecycle** — the users.conf Secret is job-created, so Helm does not track it.
+The job therefore sets the (Helm-tracked) NATS Deployment as its ownerReference: on
+`helm uninstall`, garbage collection removes the Secret together with the Deployment, and a
+reinstall starts from a clean slate. Without this, the Secret would outlive the release while
+the dev-mode Vault (and with it the seeds) does not, and the freshly installed server would
+enforce the previous install's public keys. The checksum stamp covers the complementary case:
+content changes while the server is already running.
 
 **Adding a new component** — add it to the bootstrap job's component list (values), give its
 pod the vault-agent init container, and bind a `nats-<component>` Vault role to its service

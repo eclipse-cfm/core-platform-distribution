@@ -20,6 +20,13 @@ rules:
     resources: [ "secrets" ]
     resourceNames: [ {{ $secretName | quote }} ]
     verbs: [ "get", "update" ]
+  # The job stamps the users.conf checksum onto the NATS Deployment's pod template so
+  # a content change triggers a rolling restart (the server only reads its config at
+  # startup; a mounted-Secret update alone is never picked up).
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments" ]
+    resourceNames: [ {{ include "cpd.fullname" (dict "name" "nats" "ctx" $) | quote }} ]
+    verbs: [ "get", "patch" ]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -67,6 +74,8 @@ spec:
               value: {{ .Values.vault.connection.rootToken | quote }}
             - name: SECRET_NAME
               value: {{ $secretName | quote }}
+            - name: NATS_DEPLOYMENT
+              value: {{ include "cpd.fullname" (dict "name" "nats" "ctx" $) | quote }}
             - name: ALLOW_LEGACY
               value: {{ .Values.nats.auth.allowLegacy | quote }}
           command: [ "sh", "-ec" ]
@@ -122,8 +131,10 @@ spec:
                   { nkey: "$IH_PUB", permissions: { publish: ["events.>", "\$JS.API.>"], subscribe: ["_INBOX.>"] } }
                   # issuerservice (SA: issuerservice)
                   { nkey: "$IS_PUB", permissions: { publish: ["events.>", "\$JS.API.>"], subscribe: ["_INBOX.>"] } }
-                  # CFM agents and managers (SA: cfm-agents)
-                  { nkey: "$CFM_PUB", permissions: { publish: ["cfm.>", "\$KV.cfm-bucket.>", "\$JS.API.>", "\$JS.ACK.>"], subscribe: ["cfm.>", "\$KV.cfm-bucket.>", "_INBOX.>"] } }
+                  # CFM agents and managers (SA: cfm-agents). cfm-stream carries "event.*"
+                  # (natsclient CFMSubjectPrefix); "events.>" because kmagent consumes the
+                  # edc-events stream.
+                  { nkey: "$CFM_PUB", permissions: { publish: ["event.>", "\$KV.cfm-bucket.>", "\$JS.API.>", "\$JS.ACK.>"], subscribe: ["event.>", "events.>", "\$KV.cfm-bucket.>", "_INBOX.>"] } }
                   # nats-admin: stream bootstrap (SA: seed-jobs)
                   { nkey: "$ADM_PUB", permissions: { publish: [">"], subscribe: [">"] } }
               EOF
@@ -148,7 +159,21 @@ spec:
               NS=$(cat $SA_DIR/namespace)
               KTOKEN=$(cat $SA_DIR/token)
               B64=$(base64 < /tmp/users.conf | tr -d '\n')
-              BODY="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"$SECRET_NAME\"},\"type\":\"Opaque\",\"data\":{\"users.conf\":\"$B64\"}}"
+
+              # Owner-reference the Secret to the (Helm-tracked) NATS Deployment: the
+              # Secret itself is job-created and unknown to Helm, so without an owner it
+              # would survive `helm uninstall` and a later reinstall's server would start
+              # against the previous install's public keys. With the ownerReference, GC
+              # removes it together with the Deployment.
+              # ?pretty=false: the API server pretty-prints (spaces after colons) for
+              # curl user agents, which would defeat naive JSON grepping. The grep stays
+              # tolerant of both forms anyway.
+              DEP_UID=$(curl -sf --cacert $SA_DIR/ca.crt -H "Authorization: Bearer $KTOKEN" \
+                "$API/apis/apps/v1/namespaces/$NS/deployments/$NATS_DEPLOYMENT?pretty=false" \
+                | grep -o '"uid": *"[^"]*"' | head -n1 | tr -d ' ' | cut -d'"' -f4)
+              [ -n "$DEP_UID" ] || { echo "Failed to resolve UID of deployment $NATS_DEPLOYMENT"; exit 1; }
+              OWNER="{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"name\":\"$NATS_DEPLOYMENT\",\"uid\":\"$DEP_UID\"}"
+              BODY="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"$SECRET_NAME\",\"ownerReferences\":[$OWNER]},\"type\":\"Opaque\",\"data\":{\"users.conf\":\"$B64\"}}"
 
               code=$(curl -s -o /dev/null -w "%{http_code}" --cacert $SA_DIR/ca.crt \
                 -H "Authorization: Bearer $KTOKEN" \
@@ -168,6 +193,20 @@ spec:
                   "$API/api/v1/namespaces/$NS/secrets/$SECRET_NAME"
                 echo "Secret '$SECRET_NAME' updated"
               fi
+
+              # The NATS server only reads users.conf at startup, and the Secret is not
+              # Helm-tracked (it survives `helm uninstall`), so the server may have
+              # started with stale content. Stamp the content checksum onto the pod
+              # template: unchanged content is a no-op, changed content triggers a
+              # rolling restart that re-mounts the fresh Secret.
+              CHECKSUM=$(sha256sum /tmp/users.conf | cut -d' ' -f1)
+              curl -sf -o /dev/null --cacert $SA_DIR/ca.crt \
+                -H "Authorization: Bearer $KTOKEN" \
+                -H "Content-Type: application/strategic-merge-patch+json" \
+                -X PATCH \
+                -d "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"cpd.eclipse-cfm.org/nats-auth-checksum\":\"$CHECKSUM\"}}}}}" \
+                "$API/apis/apps/v1/namespaces/$NS/deployments/$NATS_DEPLOYMENT"
+              echo "NATS deployment stamped with users.conf checksum $CHECKSUM"
               rm -f /tmp/users.conf
 
               echo "NATS auth bootstrap completed successfully!"

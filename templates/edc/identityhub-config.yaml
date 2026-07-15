@@ -60,9 +60,10 @@ data:
   edc.events.nats.stream.create: "false"
   edc.events.nats.stream.create.force: "false"
 {{- if .Values.nats.auth.enabled }}
-  # NKey seed delivered by the fetch-nats-nkey init container. Not interpreted by the
-  # current runtime yet (it connects via the no_auth_user bridge until upstream NKey
-  # support lands); see docs/nats-authentication.md.
+  # NKey seed delivered by the fetch-nats-nkey init container. The current events-nats
+  # extension does not interpret this setting yet -- until upstream NKey support lands,
+  # the runtime can only reach NATS while nats.auth.allowLegacy is enabled.
+  # See docs/nats-authentication.md.
   edc.nats.auth.nkey.seed.path: "/vault/secrets/nats.nk"
 {{- end }}
 
