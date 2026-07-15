@@ -44,20 +44,26 @@ spec:
                 sleep 2
               done
               echo "NATS is ready!"
+
+              AUTH="{{ if .Values.nats.auth.enabled }}--nkey /vault/secrets/nats.nk{{ end }}"
               {{- range .Values.nats.streams }}
 
-              nats stream add {{ .name }} \
-                --server "$NATS_URL" \
-                {{- if $.Values.nats.auth.enabled }}
-                --nkey /vault/secrets/nats.nk \
-                {{- end }}
+              # Force-create: drop any existing stream first. "Already exists" must not
+              # be treated as "done" -- a consumer may have auto-created the stream with
+              # only its own subject filter (common/natsclient creates missing streams),
+              # which silently drops every subject outside that filter (503 No Responders
+              # on publish). Discarding retained messages at bootstrap is acceptable; a
+              # wrongly-configured stream is not. Creation failures are not swallowed:
+              # the job retries and eventually fails visibly.
+              nats stream rm {{ .name }} --server "$NATS_URL" $AUTH --force 2>/dev/null \
+                && echo "Removed existing stream '{{ .name }}'" || true
+              nats stream add {{ .name }} --server "$NATS_URL" $AUTH \
                 --subjects "{{ .subjects }}" \
                 --storage {{ .storage }} \
                 --retention {{ .retention }} \
                 --allow-direct \
-                --defaults 2>/dev/null \
-              && echo "Stream '{{ .name }}' created" \
-              || echo "Stream '{{ .name }}' already exists, skipping"
+                --defaults
+              echo "Stream '{{ .name }}' created"
               {{- end }}
 
               echo "NATS bootstrap completed successfully!"
