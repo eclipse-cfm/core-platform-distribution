@@ -11,6 +11,11 @@ data:
   # "json", "toml", "yaml", "yml", "properties", "props", "prop", "hcl", "tfvars", "dotenv", "env", "ini"
   pm.env: |
     uri: {{ include "cpd.natsUrl" . }}
+{{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+    # NKey auth (common/natsclient); seed delivered by the fetch-nats-nkey init container
+    nats.auth.method: nkey
+    nats.auth.nkeySeedFile: /vault/secrets/nats.nk
+{{- end }}
     bucket: cfm-bucket
     stream: cfm-stream
     httpport: 8080

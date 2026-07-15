@@ -26,6 +26,9 @@ spec:
       serviceAccountName: cfm-agents
       initContainers:
         {{- include "cpd.waitForPostgres" (dict "db" "cfm" "user" "cfm" "password" "cfm" "ctx" $) | nindent 8 }}
+        {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+        {{- include "cpd.natsNkeyInitContainer" (dict "component" "cfm-agents" "ctx" $) | nindent 8 }}
+        {{- end }}
       containers:
         # NOTE: the keycloak-agent has been retired. It only provisioned a per-participant Keycloak
         # "vault access" client for the old Vault JWT auth; Vault auth now uses token exchange (jwtlet).
@@ -37,6 +40,9 @@ spec:
               - "--mode=debug"
           volumeMounts:
               {{- include "cpd.jwtletSubjectTokenMount" . | nindent 14 }}
+              {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+              {{- include "cpd.natsNkeyMount" . | nindent 14 }}
+              {{- end }}
               - name: jwtlet-agent-config
                 mountPath: /etc/appname
                 readOnly: true
@@ -58,6 +64,9 @@ spec:
               mountPath: /etc/appname
               readOnly: true
             {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+            {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+            {{- include "cpd.natsNkeyMount" . | nindent 12 }}
+            {{- end }}
         - name: ih-agent
           image: {{ include "cpd.image" (dict "img" $c.containers.ihAgent.image "ctx" $) }}
           imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
@@ -73,6 +82,9 @@ spec:
               mountPath: /etc/appname
               readOnly: true
             {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+            {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+            {{- include "cpd.natsNkeyMount" . | nindent 12 }}
+            {{- end }}
         - name: registration-agent
           image: {{ include "cpd.image" (dict "img" $c.containers.registrationAgent.image "ctx" $) }}
           imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
@@ -88,6 +100,9 @@ spec:
               mountPath: /etc/appname
               readOnly: true
             {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+            {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+            {{- include "cpd.natsNkeyMount" . | nindent 12 }}
+            {{- end }}
         - name: onboarding-agent
           image: {{ include "cpd.image" (dict "img" $c.containers.onboardingAgent.image "ctx" $) }}
           imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
@@ -103,8 +118,14 @@ spec:
               mountPath: /etc/appname
               readOnly: true
             {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+            {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+            {{- include "cpd.natsNkeyMount" . | nindent 12 }}
+            {{- end }}
       volumes:
         {{- include "cpd.jwtletSubjectTokenVolume" . | nindent 8 }}
+        {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+        {{- include "cpd.natsNkeyVolume" . | nindent 8 }}
+        {{- end }}
         - name: edcv-agent-config
           configMap:
             name: edcv-agent-config

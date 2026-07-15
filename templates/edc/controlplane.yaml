@@ -24,6 +24,10 @@ spec:
         type: edcv-app
     spec:
       serviceAccountName: controlplane
+      {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+      initContainers:
+        {{- include "cpd.natsNkeyInitContainer" (dict "component" "controlplane" "ctx" $) | nindent 8 }}
+      {{- end }}
       containers:
         - name: controlplane
           image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
@@ -37,6 +41,9 @@ spec:
             # RFC 8693 subject token used to exchange for a participant-scoped token at jwtlet.
             # Audience must match jwtlet's `client_audience` (the Kubernetes cluster issuer).
             {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+            {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+            {{- include "cpd.natsNkeyMount" . | nindent 12 }}
+            {{- end }}
           ports:
             - containerPort: 8081
               name: management-port
@@ -71,6 +78,9 @@ spec:
           {{- end }}
       volumes:
         {{- include "cpd.jwtletSubjectTokenVolume" . | nindent 8 }}
+        {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+        {{- include "cpd.natsNkeyVolume" . | nindent 8 }}
+        {{- end }}
       restartPolicy: Always
 ---
 apiVersion: v1

@@ -131,6 +131,58 @@ platform: edcv
 {{- end -}}
 
 {{/* -------------------------------------------------------------------------
+     NATS NKey credential delivery (see docs/nats-authentication.md).
+     Init container that logs into Vault via the kubernetes auth method using the
+     pod's own SA token, reads the component's NKey seed and drops it on the
+     pod-private in-memory volume. Retries until the vault-bootstrap job has
+     created the auth role and the nats-auth-bootstrap job has stored the seed
+     (all bootstrap jobs run concurrently with the workloads).
+     Usage: {{ include "cpd.natsNkeyInitContainer" (dict "component" "controlplane" "ctx" $) | nindent 8 }}
+     ------------------------------------------------------------------------- */}}
+{{- define "cpd.natsNkeyInitContainer" -}}
+{{- $role := printf "nats-%s" (trimPrefix "nats-" .component) -}}
+- name: fetch-nats-nkey
+  image: {{ .ctx.Values.seedJobs.images.vault }}
+  command: [ "sh", "-ec" ]
+  args:
+    - |
+      export VAULT_ADDR={{ include "cpd.vaultUrl" .ctx | quote }}
+      echo "Fetching the NATS NKey seed for '{{ .component }}' (Vault role {{ $role }})..."
+      until VAULT_TOKEN=$(vault write -field=token auth/kubernetes/login \
+          role={{ $role }} \
+          jwt=@/var/run/secrets/kubernetes.io/serviceaccount/token 2>/dev/null); do
+        echo "Vault login failed (Vault or its bootstrap not ready yet), retrying in 2 seconds..."
+        sleep 2
+      done
+      export VAULT_TOKEN
+      until vault kv get -field=seed secret/nats/{{ .component }} > /vault/secrets/nats.nk 2>/dev/null; do
+        echo "Seed not in Vault yet (nats-auth-bootstrap still running?), retrying in 2 seconds..."
+        sleep 2
+      done
+      # 0444 rather than 0400: init and app container may run as different UIDs;
+      # the volume is pod-private tmpfs either way.
+      chmod 0444 /vault/secrets/nats.nk
+      echo "NKey seed for '{{ .component }}' written to /vault/secrets/nats.nk"
+  volumeMounts:
+    - name: nats-nkey
+      mountPath: /vault/secrets
+{{- end -}}
+
+{{/* App-container mount for the fetched NKey seed. */}}
+{{- define "cpd.natsNkeyMount" -}}
+- name: nats-nkey
+  mountPath: /vault/secrets
+  readOnly: true
+{{- end -}}
+
+{{/* Pod-private in-memory volume the seed is delivered on (never hits disk). */}}
+{{- define "cpd.natsNkeyVolume" -}}
+- name: nats-nkey
+  emptyDir:
+    medium: Memory
+{{- end -}}
+
+{{/* -------------------------------------------------------------------------
      initContainer that blocks until the given Postgres database is connectable
      with the given credentials. Because it authenticates against the specific
      database, a success also proves the postgres-init Job has created that

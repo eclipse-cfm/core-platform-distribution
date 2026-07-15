@@ -226,6 +226,35 @@ spec:
               vault write auth/jwt/config \
                 jwks_url="http://{{ $jwtletHost }}:8080/.well-known/jwks.json" \
                 default_role="participant" || { echo "Failed to configure JWT auth"; exit 1; }
+{{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+
+              echo "########################################"
+              echo "NATS NKey seed access (per-component)"
+              echo "########################################"
+
+              # Read-only access to each component's NATS NKey seed, bound to its
+              # EXISTING service account (see docs/nats-authentication.md). The seeds
+              # themselves are written by the nats-auth-bootstrap job; the fetch-nats-nkey
+              # init containers log in with these roles to deliver the seed into the pod.
+              for entry in "controlplane:controlplane" "identityhub:identityhub" "issuerservice:issuerservice" "cfm-agents:cfm-agents" "nats-admin:seed-jobs"; do
+                comp=${entry%%:*}
+                sa=${entry##*:}
+                role="nats-${comp#nats-}"
+
+                cat <<EOF | vault policy write "$role" - || { echo "Failed to write $role policy"; exit 1; }
+              path "secret/data/nats/$comp" {
+                capabilities = ["read"]
+              }
+              EOF
+
+                vault write "auth/kubernetes/role/$role" \
+                  bound_service_account_names="$sa" \
+                  bound_service_account_namespaces={{ include "cpd.namespace" . }} \
+                  policies="$role" \
+                  ttl=1h || { echo "Failed to create $role k8s-auth role"; exit 1; }
+                echo "Vault policy/role '$role' bound to SA '$sa'"
+              done
+{{- end }}
 
               echo "Vault bootstrap completed successfully!"
       restartPolicy: OnFailure

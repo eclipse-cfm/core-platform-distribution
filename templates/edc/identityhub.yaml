@@ -23,6 +23,10 @@ spec:
         type: edcv-app
     spec:
       serviceAccountName: identityhub
+      {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+      initContainers:
+        {{- include "cpd.natsNkeyInitContainer" (dict "component" "identityhub" "ctx" $) | nindent 8 }}
+      {{- end }}
       containers:
         - name: identityhub
           image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
@@ -35,6 +39,9 @@ spec:
           volumeMounts:
             # RFC 8693 subject token used to exchange for a participant-scoped token at jwtlet.
             {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+            {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+            {{- include "cpd.natsNkeyMount" . | nindent 12 }}
+            {{- end }}
           ports:
             - containerPort: 7082
               name: creds-port
@@ -74,6 +81,9 @@ spec:
           {{- end }}
       volumes:
         {{- include "cpd.jwtletSubjectTokenVolume" . | nindent 8 }}
+        {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+        {{- include "cpd.natsNkeyVolume" . | nindent 8 }}
+        {{- end }}
 
 ---
 apiVersion: v1

@@ -22,8 +22,14 @@ spec:
         platform: edcv
         type: edcv-app
     spec:
+      # cfm-agents (rather than the default SA) so the pod can fetch the shared
+      # cfm-agents NATS NKey seed from Vault.
+      serviceAccountName: cfm-agents
       initContainers:
         {{- include "cpd.waitForPostgres" (dict "db" "cfm" "user" "cfm" "password" "cfm" "ctx" $) | nindent 8 }}
+        {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+        {{- include "cpd.natsNkeyInitContainer" (dict "component" "cfm-agents" "ctx" $) | nindent 8 }}
+        {{- end }}
       containers:
         - name: provision-manager
           image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
@@ -41,6 +47,9 @@ spec:
             - name: config
               mountPath: /etc/appname
               readOnly: true
+            {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+            {{- include "cpd.natsNkeyMount" . | nindent 12 }}
+            {{- end }}
           {{- with $c.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -49,6 +58,9 @@ spec:
         - name: config
           configMap:
             name: pm-config
+        {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+        {{- include "cpd.natsNkeyVolume" . | nindent 8 }}
+        {{- end }}
       restartPolicy: Always
 
 ---
