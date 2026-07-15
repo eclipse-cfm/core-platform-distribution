@@ -111,11 +111,12 @@ The runtimes reference the seed file by path:
 
 - **`nats-bootstrap` job** — the `nats` CLI's built-in `--nkey /vault/secrets/nats.nk` flag;
   no code involved.
-- **EDC runtimes** — pending: the `events-nats` extension currently only knows
-  `edc.events.nats.url`/`.stream*`. The chart already ships the seed and the (forward-looking)
-  `edc.nats.auth.nkey.seed.path` setting, but until upstream NKey support lands the EDC
-  runtimes cannot connect to NATS at all — authentication is enforced unconditionally, there
-  is no anonymous fallback.
+- **EDC runtimes** — the runtimes' *NATS NKey Authentication Extension* reads
+  `edc.nats.auth.nkey.seed.path` (set in each config ConfigMap) and signs the server nonce
+  with the mounted seed. If the setting is absent, the runtime logs
+  `'edc.nats.auth.nkey.seed.path' is not configured, NATS connections will not present
+  credentials` at startup — with authentication enforced (no anonymous fallback), such a
+  runtime cannot connect.
 
 ## Permissions
 
@@ -173,6 +174,12 @@ account. The next upgrade generates its key and extends `users.conf`.
   fetched a seed that predates a rotation. Restart the pod (fresh init-container fetch).
 - Init container hangs at Vault login — the `nats-<component>` role is missing or bound to
   the wrong SA/namespace; check the Vault bootstrap job logs.
+- `Error Publishing: 503 No Responders Available For Request` — **not** an auth error (the
+  client is connected): a JetStream publish for which no stream covers the subject. Compare
+  `nats stream info <name>` against `nats.streams` in values.yaml — typically the stream was
+  auto-recreated by a consumer with only its own subject filter after a NATS restart wiped
+  the (deliberately ephemeral) JetStream state. A `helm upgrade` re-runs the
+  `nats-bootstrap` job, which force-recreates the defined streams.
 
 ## Security considerations
 

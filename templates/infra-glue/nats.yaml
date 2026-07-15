@@ -9,6 +9,10 @@
 # (<release>-nats) to match the community sub-chart naming convention; the nats.conf body,
 # volume mappings and container args mirror the source 1:1, except for the authorization
 # include appended when nats.auth.enabled (see docs/nats-authentication.md).
+# NOTE: JetStream state is deliberately ephemeral (emptyDir): every pod restart wipes all
+# streams, and only the nats-bootstrap job (install/upgrade) force-recreates the ones
+# defined in values.yaml. Streams recreated ad hoc by reconnecting consumers may be
+# scoped to their own subject filter -- run `helm upgrade` to restore the defined shape.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

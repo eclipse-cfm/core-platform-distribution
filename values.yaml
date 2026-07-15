@@ -130,7 +130,10 @@ nats:
     # fetch-nats-nkey init containers, and the Vault policies/k8s-auth roles that
     # gate each component's seed to its service account.
     enabled: true
-  # Streams created by the nats-bootstrap job.
+  # Streams force-created by the nats-bootstrap job: an existing stream is dropped
+  # and recreated from this definition on every install/upgrade, so a stream that a
+  # consumer auto-created with narrower subjects never survives (see
+  # docs/nats-authentication.md, Troubleshooting).
   streams:
     - name: edc-events
       subjects: "events.>"
