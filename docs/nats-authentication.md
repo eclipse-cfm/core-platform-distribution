@@ -113,8 +113,9 @@ The runtimes reference the seed file by path:
   no code involved.
 - **EDC runtimes** — pending: the `events-nats` extension currently only knows
   `edc.events.nats.url`/`.stream*`. The chart already ships the seed and the (forward-looking)
-  `edc.nats.auth.nkey.seed.path` setting; until upstream NKey support lands, the EDC runtimes
-  can only reach NATS while the `no_auth_user` bridge (below) is enabled.
+  `edc.nats.auth.nkey.seed.path` setting, but until upstream NKey support lands the EDC
+  runtimes cannot connect to NATS at all — authentication is enforced unconditionally, there
+  is no anonymous fallback.
 
 ## Permissions
 
@@ -140,27 +141,6 @@ export/import friction here.
 
 The monitoring port (`8222`, `/healthz`) remains unauthenticated by design — the bootstrap
 jobs' readiness checks depend on it and it exposes no message data.
-
-## Migration: the `no_auth_user` bridge
-
-Authentication is rolled out without breaking clients that cannot present an NKey yet.
-`users.conf` contains an additional NKey-less user with today's unrestricted permissions, and
-the server sets:
-
-```
-no_auth_user: legacy
-```
-
-Connections that present no credentials are mapped to `legacy` and keep working. Components
-adopt NKeys one by one as their runtime support lands; the NATS debug log shows which
-connections still bind as `legacy`. Once none do, the bridge is disabled via values
-(`nats.auth.allowLegacy: false`), and unauthenticated connections are refused. This mirrors
-the report-only rollout used for clearglass scope enforcement.
-
-Current state: the CFM components and the `nats-bootstrap` job authenticate with NKeys; the
-EDC runtimes do not yet. With the bridge disabled (the chart default), EDC event publishing
-is unavailable until upstream `events-nats` NKey support lands — re-enable
-`nats.auth.allowLegacy` if EDC eventing is needed in the interim.
 
 ## Operations
 
@@ -193,8 +173,6 @@ account. The next upgrade generates its key and extends `users.conf`.
   fetched a seed that predates a rotation. Restart the pod (fresh init-container fetch).
 - Init container hangs at Vault login — the `nats-<component>` role is missing or bound to
   the wrong SA/namespace; check the Vault bootstrap job logs.
-- Everything still connects as `legacy` — expected until runtime NKey support is deployed;
-  see the migration section.
 
 ## Security considerations
 

@@ -76,8 +76,6 @@ spec:
               value: {{ $secretName | quote }}
             - name: NATS_DEPLOYMENT
               value: {{ include "cpd.fullname" (dict "name" "nats" "ctx" $) | quote }}
-            - name: ALLOW_LEGACY
-              value: {{ .Values.nats.auth.allowLegacy | quote }}
           command: [ "sh", "-ec" ]
           args:
             - |
@@ -137,18 +135,6 @@ spec:
                   { nkey: "$CFM_PUB", permissions: { publish: ["event.>", "\$KV.cfm-bucket.>", "\$JS.API.>", "\$JS.ACK.>"], subscribe: ["event.>", "events.>", "\$KV.cfm-bucket.>", "_INBOX.>"] } }
                   # nats-admin: stream bootstrap (SA: seed-jobs)
                   { nkey: "$ADM_PUB", permissions: { publish: [">"], subscribe: [">"] } }
-              EOF
-              if [ "$ALLOW_LEGACY" = "true" ]; then
-                # Migration bridge: no_auth_user (nats.conf) maps credential-less
-                # connections to this user. The password is random and discarded --
-                # nothing is meant to log in as "legacy" explicitly.
-                LEGACY_PW=$(head -c 24 /dev/urandom | base64 | tr -d '=+/\n')
-                cat >> /tmp/users.conf <<EOF
-                  # Migration bridge (nats.auth.allowLegacy), target of no_auth_user.
-                  { user: legacy, password: "$LEGACY_PW", permissions: { publish: [">"], subscribe: [">"] } }
-              EOF
-              fi
-              cat >> /tmp/users.conf <<EOF
                 ]
               }
               EOF

@@ -130,10 +130,6 @@ nats:
     # fetch-nats-nkey init containers, and the Vault policies/k8s-auth roles that
     # gate each component's seed to its service account.
     enabled: true
-    # Migration bridge: map credential-less connections to the full-permission
-    # "legacy" user (no_auth_user) instead of rejecting them. Keep enabled until
-    # every runtime presents its NKey, then set false to enforce authentication.
-    allowLegacy: false
   # Streams created by the nats-bootstrap job.
   streams:
     - name: edc-events

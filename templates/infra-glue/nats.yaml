@@ -101,13 +101,6 @@ data:
     # {{ $authSecretName }} Secret, mounted at /etc/nats/auth.
     # See docs/nats-authentication.md.
     include "auth/users.conf"
-{{- if .Values.nats.auth.allowLegacy }}
-
-    # Migration bridge: map credential-less connections to the full-permission
-    # "legacy" user instead of rejecting them. Disable (nats.auth.allowLegacy=false)
-    # once every component authenticates with its NKey.
-    no_auth_user: legacy
-{{- end }}
 {{- end }}
 
 ---
