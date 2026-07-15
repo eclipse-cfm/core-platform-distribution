@@ -76,6 +76,12 @@ data:
   edc.events.nats.stream: "edc-events"
   edc.events.nats.stream.create: "false"
   edc.events.nats.stream.create.force: "false"
+{{- if .Values.nats.auth.enabled }}
+  # NKey seed delivered by the fetch-nats-nkey init container. Not interpreted by the
+  # current runtime yet (it connects via the no_auth_user bridge until upstream NKey
+  # support lands); see docs/nats-authentication.md.
+  edc.nats.auth.nkey.seed.path: "/vault/secrets/nats.nk"
+{{- end }}
 {{- if .Values.global.debug.enabled }}
 
   JAVA_TOOL_OPTIONS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=1044"

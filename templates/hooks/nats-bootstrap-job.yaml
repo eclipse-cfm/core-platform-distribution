@@ -18,12 +18,23 @@ spec:
       labels:
         type: edcv-job
     spec:
+      # seed-jobs is the SA bound to the nats-admin NKey seed (nats.auth); harmless
+      # otherwise.
+      serviceAccountName: seed-jobs
+      {{- if .Values.nats.auth.enabled }}
+      initContainers:
+        {{- include "cpd.natsNkeyInitContainer" (dict "component" "nats-admin" "ctx" $) | nindent 8 }}
+      {{- end }}
       containers:
         - name: nats-cli
           image: {{ .Values.seedJobs.images.natsBox }}
           env:
             - name: NATS_URL
               value: {{ include "cpd.natsUrl" . | quote }}
+          {{- if .Values.nats.auth.enabled }}
+          volumeMounts:
+            {{- include "cpd.natsNkeyMount" . | nindent 12 }}
+          {{- end }}
           command: [ "sh", "-ec" ]
           args:
             - |
@@ -37,6 +48,9 @@ spec:
 
               nats stream add {{ .name }} \
                 --server "$NATS_URL" \
+                {{- if $.Values.nats.auth.enabled }}
+                --nkey /vault/secrets/nats.nk \
+                {{- end }}
                 --subjects "{{ .subjects }}" \
                 --storage {{ .storage }} \
                 --retention {{ .retention }} \
@@ -47,5 +61,9 @@ spec:
               {{- end }}
 
               echo "NATS bootstrap completed successfully!"
+      {{- if .Values.nats.auth.enabled }}
+      volumes:
+        {{- include "cpd.natsNkeyVolume" . | nindent 8 }}
+      {{- end }}
       restartPolicy: OnFailure
 {{- end }}

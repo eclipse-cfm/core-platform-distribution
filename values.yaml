@@ -123,6 +123,17 @@ nats:
     host: ""
     port: 4222
     monitorPort: 8222
+  # Component-level authentication via NKeys; see docs/nats-authentication.md.
+  auth:
+    # Renders the authorization include in nats.conf (users.conf is generated into
+    # the <release>-nats-auth Secret by the nats-auth-bootstrap job), the per-pod
+    # fetch-nats-nkey init containers, and the Vault policies/k8s-auth roles that
+    # gate each component's seed to its service account.
+    enabled: true
+    # Migration bridge: map credential-less connections to the full-permission
+    # "legacy" user (no_auth_user) instead of rejecting them. Keep enabled until
+    # every runtime presents its NKey, then set false to enforce authentication.
+    allowLegacy: false
   # Streams created by the nats-bootstrap job.
   streams:
     - name: edc-events
@@ -620,6 +631,10 @@ seedJobs:
   vaultBootstrap:
     enabled: true
   natsBootstrap:
+    enabled: true
+  # Generates the per-component NKey seeds (Vault) and the users.conf Secret
+  # consumed by the NATS server; only effective when nats.auth.enabled.
+  natsAuthBootstrap:
     enabled: true
   jwtletSeed:
     enabled: true

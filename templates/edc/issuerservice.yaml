@@ -24,6 +24,10 @@ spec:
         type: edcv-app
     spec:
       serviceAccountName: issuerservice
+      {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+      initContainers:
+        {{- include "cpd.natsNkeyInitContainer" (dict "component" "issuerservice" "ctx" $) | nindent 8 }}
+      {{- end }}
       containers:
         - name: issuerservice
           image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
@@ -39,6 +43,9 @@ spec:
           volumeMounts:
             # RFC 8693 subject token used to exchange for a participant-scoped token at jwtlet.
             {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+            {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+            {{- include "cpd.natsNkeyMount" . | nindent 12 }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /api/check/liveness
@@ -66,6 +73,9 @@ spec:
           {{- end }}
       volumes:
         {{- include "cpd.jwtletSubjectTokenVolume" . | nindent 8 }}
+        {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+        {{- include "cpd.natsNkeyVolume" . | nindent 8 }}
+        {{- end }}
       restartPolicy: Always
 
 
