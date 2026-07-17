@@ -70,6 +70,9 @@ data:
   edc.dataspace.enable.profiles.all: "true"
   # Trusted Issuers
   edc.iam.trusted-issuer.issuer.id: {{ include "cpd.issuerDid" . | quote }}
+{{- range .Values.edc.controlplane.trustedIssuers }}
+  edc.iam.trusted-issuer.{{ .name }}.id: {{ .id | quote }}
+{{- end }}
 
   # NATS config for events
   edc.events.nats.url: {{ include "cpd.natsUrl" . | quote }}
