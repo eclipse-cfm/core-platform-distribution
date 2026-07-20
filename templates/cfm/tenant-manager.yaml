@@ -106,7 +106,7 @@ spec:
           extensionRef:
             group: traefik.io
             kind: Middleware
-            name: jwt-auth-tenant-manager-api
+            name: jwt-auth
 {{- end }}
       backendRefs:
         - name: tenant-manager

@@ -458,21 +458,6 @@ security:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
-  # Traefik forward-auth middlewares. Each generates a Middleware named `jwt-auth-<name>`
-  # whose forwardAuth address is clearglass /validate with one `scope=` query param per entry.
-  middlewares:
-    - name: management-api
-      scopes: [management-api:read, management-api:write]
-    - name: identity-api
-      scopes: [identity-api:read, identity-api:write]
-    - name: issuer-admin-api
-      scopes: [issuer-admin-api:read, issuer-admin-api:write]
-    - name: tenant-manager-api
-      scopes: [tenant-manager-api:read, tenant-manager-api:write]
-    - name: provision-manager-api
-      scopes: [provision-manager-api:read, provision-manager-api:write]
-    - name: siglet-api
-      scopes: [siglet-api:read]
 
 # =============================================================================
 # EDC application components.
@@ -480,7 +465,7 @@ security:
 edc:
   controlplane:
     enabled: true
-    # Attach the clearglass forward-auth middleware (jwt-auth-management-api) to this
+    # Attach the clearglass forward-auth middleware (jwt-auth) to this
     # service's HTTPRoute. Set false to expose the API without token validation. Auth is
     # also skipped chart-wide when global.authEnabled or security.clearglass.enabled
     # is false — global off wins over any per-service setting.
@@ -494,7 +479,7 @@ edc:
     resources: {}
   identityhub:
     enabled: true
-    # Clearglass forward-auth (jwt-auth-identity-api) on the HTTPRoute; see edc.controlplane.authEnabled.
+    # Clearglass forward-auth (jwt-auth) on the HTTPRoute; see edc.controlplane.authEnabled.
     authEnabled: true
     configMapName: ih-config
     image:
@@ -516,7 +501,7 @@ edc:
     scopes: []
   issuerservice:
     enabled: true
-    # Clearglass forward-auth (jwt-auth-issuer-admin-api) on the HTTPRoute; see edc.controlplane.authEnabled.
+    # Clearglass forward-auth (jwt-auth) on the HTTPRoute; see edc.controlplane.authEnabled.
     authEnabled: true
     image:
       # there is a published issuerservice image in eclipse-cfm/platform-images, but it does NOT contain all the specific
@@ -529,7 +514,7 @@ edc:
     resources: {}
   siglet:
     enabled: true
-    # Clearglass forward-auth (jwt-auth-siglet-api) on the HTTPRoute; see edc.controlplane.authEnabled.
+    # Clearglass forward-auth (jwt-auth) on the HTTPRoute; see edc.controlplane.authEnabled.
     authEnabled: true
     image:
       repo: eclipse-dataplane-core/dsdk-facet-rs/siglet
@@ -582,7 +567,7 @@ cfm:
     resources: {}
   provisionManager:
     enabled: true
-    # Clearglass forward-auth (jwt-auth-provision-manager-api) on the HTTPRoute; see edc.controlplane.authEnabled.
+    # Clearglass forward-auth (jwt-auth) on the HTTPRoute; see edc.controlplane.authEnabled.
     authEnabled: true
     configMapName: pm-config
     image:
@@ -594,7 +579,7 @@ cfm:
     resources: {}
   tenantManager:
     enabled: true
-    # Clearglass forward-auth (jwt-auth-tenant-manager-api) on the HTTPRoute; see edc.controlplane.authEnabled.
+    # Clearglass forward-auth (jwt-auth) on the HTTPRoute; see edc.controlplane.authEnabled.
     authEnabled: true
     configMapName: tm-config
     image:

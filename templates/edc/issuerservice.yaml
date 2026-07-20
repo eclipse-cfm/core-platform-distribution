@@ -147,7 +147,7 @@ spec:
           extensionRef:
             group: traefik.io
             kind: Middleware
-            name: jwt-auth-issuer-admin-api
+            name: jwt-auth
 {{- end }}
       backendRefs:
         - name: issuerservice

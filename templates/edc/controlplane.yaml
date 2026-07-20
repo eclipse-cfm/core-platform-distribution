@@ -139,7 +139,7 @@ spec:
           extensionRef:
             group: traefik.io
             kind: Middleware
-            name: jwt-auth-management-api
+            name: jwt-auth
 {{- end }}
       backendRefs:
         - name: controlplane

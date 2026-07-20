@@ -146,7 +146,7 @@ spec:
           extensionRef:
             group: traefik.io
             kind: Middleware
-            name: jwt-auth-identity-api
+            name: jwt-auth
 {{- end }}
       backendRefs:
         - name: identityhub
