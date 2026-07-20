@@ -39,10 +39,10 @@ data:
 
   # NATS config
   edc.nats.cn.subscriber.url: {{ include "cpd.natsUrl" . | quote }}
-  edc.nats.cn.subscriber.autocreate: "true"
+  edc.nats.cn.subscriber.consumer.autocreate: "true"
   edc.nats.cn.publisher.url: {{ include "cpd.natsUrl" . | quote }}
   edc.nats.tp.subscriber.url: {{ include "cpd.natsUrl" . | quote }}
-  edc.nats.tp.subscriber.autocreate: "true"
+  edc.nats.tp.subscriber.consumer.autocreate: "true"
   edc.nats.tp.publisher.url: {{ include "cpd.natsUrl" . | quote }}
 
   # datasource config
