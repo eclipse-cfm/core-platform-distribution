@@ -262,8 +262,7 @@ spec:
                       "id": "connector-provisioner",
                       "type": "edcv-activity",
                       "dependsOn": [
-                        "jwtlet-tokenexchange-agent",
-                        "identityhub-provisioner"
+                        "jwtlet-tokenexchange-agent"
                       ]
                     },
                     {

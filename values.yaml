@@ -492,6 +492,14 @@ edc:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Additional trusted issuers registered in the controlplane, in addition to the
+    # built-in issuerservice DID (edc.iam.trusted-issuer.issuer.id). Each entry is
+    # rendered as edc.iam.trusted-issuer.<name>.id. The name is the EDC alias — it must
+    # be unique and must not reuse the reserved `issuer` alias. Empty by default.
+    #   trustedIssuers:
+    #     - name: partner
+    #       id: "did:web:partner.example.com:issuer"
+    trustedIssuers: []
   identityhub:
     enabled: true
     # Clearglass forward-auth (jwt-auth-identity-api) on the HTTPRoute; see edc.controlplane.authEnabled.
