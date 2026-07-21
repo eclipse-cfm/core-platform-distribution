@@ -106,7 +106,7 @@ spec:
           extensionRef:
             group: traefik.io
             kind: Middleware
-            name: jwt-auth-provision-manager-api
+            name: jwt-auth
 {{- end }}
       backendRefs:
         - name: provision-manager
