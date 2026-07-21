@@ -137,9 +137,16 @@ nats:
   streams:
     - name: edc-events
       subjects: "events.>"
-      storage: memory
+      storage: file
       retention: interest
-
+    - name: cn-stream
+      subjects: "negotiations.>"
+      storage: file
+      retention: interest
+    - name: tp-stream
+      subjects: "transfers.>"
+      storage: file
+      retention: interest
 # =============================================================================
 # Telemetry (observability stack). Deployed as in-chart templates (self-contained
 # single-replica Deployments) named exactly as the telemetry-config endpoints below
