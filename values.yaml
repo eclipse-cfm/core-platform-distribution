@@ -130,6 +130,16 @@ nats:
     # fetch-nats-nkey init containers, and the Vault policies/k8s-auth roles that
     # gate each component's seed to its service account.
     enabled: true
+  # Data volume for JetStream (store_dir). Without persistence the store is an emptyDir, so
+  # `storage: file` streams are NOT durable: every pod replacement (e.g. the roll triggered by
+  # a users.conf change) wipes all streams and durable consumers, and only the nats-bootstrap
+  # job (re-run on install/upgrade of THIS release) recreates the streams. With persistence
+  # enabled the file-backed streams and consumers survive restarts and no component needs to
+  # reconnect-from-scratch or restart.
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: "" # "" => cluster default StorageClass
   # Streams force-created by the nats-bootstrap job: an existing stream is dropped
   # and recreated from this definition on every install/upgrade, so a stream that a
   # consumer auto-created with narrower subjects never survives (see
