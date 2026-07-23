@@ -563,7 +563,7 @@ edc:
 # =============================================================================
 cfm:
   agents:
-    # Single deployment, five containers each with their own config mounted at /etc/appname.
+    # Single deployment, six containers each with their own config mounted at /etc/appname.
     enabled: true
     containers:
       jwtletAgent:
@@ -576,6 +576,8 @@ cfm:
         image: { repo: eclipse-cfm/cfm/regagent, tag: latest }
       onboardingAgent:
         image: { repo: eclipse-cfm/cfm/obagent, tag: latest }
+      sigletAgent:
+        image: { repo: eclipse-cfm/cfm/sigletagent, tag: latest }
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""

@@ -121,6 +121,24 @@ spec:
             {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
             {{- include "cpd.natsNkeyMount" . | nindent 12 }}
             {{- end }}
+        - name: siglet-agent
+          image: {{ include "cpd.image" (dict "img" $c.containers.sigletAgent.image "ctx" $) }}
+          imagePullPolicy: {{ include "cpd.pullPolicy" (dict "policy" $c.imagePullPolicy "ctx" $) }}
+          command: [ "/sigletagent" ]
+          args: [
+            "--mode=debug"
+          ]
+          envFrom:
+            - configMapRef:
+                name: telemetry-config
+          volumeMounts:
+            - name: siglet-agent-config
+              mountPath: /etc/appname
+              readOnly: true
+            {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+            {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+            {{- include "cpd.natsNkeyMount" . | nindent 12 }}
+            {{- end }}
       volumes:
         {{- include "cpd.jwtletSubjectTokenVolume" . | nindent 8 }}
         {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
@@ -138,6 +156,9 @@ spec:
         - name: onboarding-agent-config
           configMap:
             name: ob-agent-config
+        - name: siglet-agent-config
+          configMap:
+            name: siglet-agent-config
         - name: jwtlet-agent-config
           configMap:
             name: jwtlet-agent-config

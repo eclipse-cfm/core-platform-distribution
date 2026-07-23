@@ -163,4 +163,34 @@ data:
     tokenexchange.url: http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080
     tokenexchange.audience: {{ .Values.global.tokenExchangeAudience }}
     tokenexchange.tokenFilePath: /var/run/secrets/jwtlet/token
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: siglet-agent-config
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+data:
+  # the file must be called "tm", and the extension must be one of
+  # "json", "toml", "yaml", "yml", "properties", "props", "prop", "hcl", "tfvars", "dotenv", "env", "ini"
+  sigletagent.env: |
+    uri: {{ include "cpd.natsUrl" . }}
+{{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
+    # NKey auth (common/natsclient); seed delivered by the fetch-nats-nkey init container
+    nats.auth.method: nkey
+    nats.auth.nkeySeedFile: /vault/secrets/nats.nk
+{{- end }}
+    bucket: cfm-bucket
+    stream: cfm-stream
+    httpport: 8080
+    postgres: true
+    dsn: postgres://cfm:cfm@{{ include "cpd.pgHost" . }}:{{ .Values.postgresql.connection.port }}/cfm?sslmode=disable
+    siglet.management.url: http://{{ include "cpd.fqdn" (dict "svc" "siglet" "ctx" $) }}:8083
+    siglet.signaling.url: http://{{ include "cpd.fqdn" (dict "svc" "siglet" "ctx" $) }}:8081
+    controlplane.url: http://{{ include "cpd.fqdn" (dict "svc" "controlplane" "ctx" $) }}:8081/api/mgmt
+
+    tokenexchange.url: http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080
+    tokenexchange.audience: {{ .Values.global.tokenExchangeAudience }}
+    tokenexchange.tokenFilePath: /var/run/secrets/jwtlet/token
 {{- end }}
