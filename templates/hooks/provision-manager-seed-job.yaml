@@ -221,6 +221,25 @@ spec:
               echo "✓ jwtlet-activity created"
 
               echo ""
+              echo "Step 7b: Create siglet-activity ActivityDefinition"
+              echo "------------------------------------------------"
+
+              do_curl -X POST "${PM_BASE_URL}/api/v1alpha1/activity-definitions" \
+                -H "Authorization: Bearer ${EXCHANGED_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "description": "Configures Siglet transfer-type mappings and registers the dataplane in the control plane",
+                  "inputSchema": {},
+                  "outputSchema": {},
+                  "type": "siglet-activity"
+                }'
+              if [ "$RESP_STATUS" -ge 400 ]; then
+                echo "ERROR: Failed to create siglet-activity (HTTP $RESP_STATUS): $RESP_BODY"
+                exit 1
+              fi
+              echo "✓ siglet-activity created"
+
+              echo ""
               echo "Step 8: Create Orchestration Definition (deploy + dispose)"
               echo "------------------------------------------------"
 
@@ -245,6 +264,11 @@ spec:
                       "id": "connector-rollback",
                       "type": "edcv-activity",
                       "dependsOn": []
+                    },
+                    {
+                      "id": "siglet-rollback",
+                      "type": "siglet-activity",
+                      "dependsOn": []
                     }],
                     "cfm.orchestration.vpa.deploy": [
                     {
@@ -263,6 +287,14 @@ spec:
                       "type": "edcv-activity",
                       "dependsOn": [
                         "jwtlet-tokenexchange-agent"
+                      ]
+                    },
+                    {
+                      "id": "siglet-provisioner",
+                      "type": "siglet-activity",
+                      "dependsOn": [
+                        "jwtlet-tokenexchange-agent",
+                        "connector-provisioner"
                       ]
                     },
                     {
