@@ -58,6 +58,7 @@ spec:
                 -H "Content-Type: application/x-www-form-urlencoded" \
                 --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:token-exchange" \
                 --data-urlencode "subject_token=${SA_TOKEN}" \
+                --data-urlencode "subject_token_type=urn:ietf:params:oauth:token-type:jwt" \
                 --data-urlencode "resource=issuer" \
                 --data-urlencode "scope=cfm-read" \
                 --data-urlencode "audience={{ .Values.global.tokenExchangeAudience }}" \
@@ -106,6 +107,7 @@ spec:
                 -H "Content-Type: application/x-www-form-urlencoded" \
                 --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:token-exchange" \
                 --data-urlencode "subject_token=${SA_TOKEN}" \
+                --data-urlencode "subject_token_type=urn:ietf:params:oauth:token-type:jwt" \
                 --data-urlencode "resource=issuer" \
                 --data-urlencode "scope=cfm-write" \
                 --data-urlencode "audience={{ .Values.global.tokenExchangeAudience }}"
