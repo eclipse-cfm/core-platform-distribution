@@ -96,6 +96,7 @@ spec:
                 -H "Content-Type: application/x-www-form-urlencoded" \
                 --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:token-exchange" \
                 --data-urlencode "subject_token=${SA_TOKEN}" \
+                --data-urlencode "subject_token_type=urn:ietf:params:oauth:token-type:jwt" \
                 --data-urlencode "resource=issuer" \
                 --data-urlencode "scope=admin" \
                 --data-urlencode "audience={{ .Values.global.tokenExchangeAudience }}"
