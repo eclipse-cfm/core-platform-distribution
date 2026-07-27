@@ -1,5 +1,6 @@
 {{- if .Values.edc.siglet.enabled }}
 {{- $c := .Values.edc.siglet }}
+{{- $jwtlet := printf "http://%s:8080" (include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $)) }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -21,63 +22,43 @@ spec:
     spec:
       serviceAccountName: siglet-sa
       initContainers:
-        # Native sidecar: starts and stays running before the main containers,
-        # writing the Vault token to /vault/secrets/.vault-token.
-        - name: vault-agent
-          image: {{ $c.vaultAgentImage }}
-          restartPolicy: Always
-          securityContext:
-            capabilities:
-              add:
-                - IPC_LOCK
+        # siglet mints its Vault token at startup: an RFC 8693 exchange at jwtlet, then a
+        # Vault jwt login with `siglet-role`. It exits(1) on the first failure with no retry,
+        # and both prerequisites are created by plain Jobs that run CONCURRENTLY with this
+        # Deployment -- siglet-seed (the jwtlet mapping) and vault-bootstrap (siglet-role plus
+        # auth/jwt/config, which it writes as its very last step). Block here until the whole
+        # chain works so the pod never crash-loops.
+        - name: wait-for-vault-auth
+          image: {{ .Values.seedJobs.images.curl }}
+          command: [ "sh", "-c" ]
           args:
-            - "agent"
-            - "-config=/vault/config/vault-agent-config.hcl"
-            - "-log-level=debug"
-          env:
-            - name: VAULT_ADDR
-              value: {{ include "cpd.vaultUrl" . | quote }}
-          volumeMounts:
-            - name: vault-agent-config
-              mountPath: /vault/config
-            - name: vault-secrets
-              mountPath: /vault/secrets
-          resources:
-            requests:
-              memory: "64Mi"
-              cpu: "50m"
-            limits:
-              memory: "128Mi"
-              cpu: "100m"
-        # Block startup until the Vault token has actually been written, so
-        # siglet never starts before the token file exists.
-        - name: wait-for-vault-token
-          image: busybox:1.36
-          command:
-            - sh
-            - -c
             - |
-              echo "Waiting for Vault token..."
-              until [ -f /vault/secrets/.vault-token ]; do
-                sleep 1
+              VAULT_URL="{{ include "cpd.vaultUrl" . }}"
+              JWTLET_TOKEN_URL="http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080/token"
+              until TOKEN=$(curl -sf -X POST "$JWTLET_TOKEN_URL" \
+                      -H "Content-Type: application/x-www-form-urlencoded" \
+                      --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:token-exchange" \
+                      --data-urlencode "subject_token=$(cat /var/run/secrets/jwtlet/token)" \
+                      --data-urlencode "subject_token_type=urn:ietf:params:oauth:token-type:jwt" \
+                      --data-urlencode "resource=siglet" \
+                      --data-urlencode "scope=read" \
+                      --data-urlencode "audience={{ .Values.global.tokenExchangeAudience }}" \
+                      | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p') && [ -n "$TOKEN" ] \
+                 && printf '{"jwt":"%s","role":"siglet-role"}' "$TOKEN" \
+                      | curl -sf -o /dev/null -X POST "$VAULT_URL/v1/auth/jwt/login" --data-binary @-; do
+                echo "Waiting for the siglet Vault auth chain (jwtlet mapping, Vault jwt role)..."
+                sleep 5
               done
-              echo "Vault token available"
+              echo "Siglet Vault auth chain is ready"
           volumeMounts:
-            - name: vault-secrets
-              mountPath: /vault/secrets
-              readOnly: true
+            {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
       volumes:
-        - name: vault-secrets
-          emptyDir: { }
-        - name: vault-agent-config
-          configMap:
-            name: vault-agent-config-siglet
-            items:
-              - key: vault-agent-config.hcl
-                path: vault-agent-config.hcl
         - name: siglet-config
           configMap:
             name: siglet-config
+        # RFC 8693 subject_token exchanged at jwtlet for the participant token used to
+        # log into Vault. Audience must match jwtlet's `client_audience`.
+        {{- include "cpd.jwtletSubjectTokenVolume" . | nindent 8 }}
       containers:
         - name: siglet
           image: {{ include "cpd.image" (dict "img" $c.image "ctx" $) }}
@@ -108,12 +89,30 @@ spec:
               value: "/config/siglet.toml"
             - name: SIGLET__VAULT__URL
               value: {{ include "cpd.vaultUrl" . | quote }}
-            - name: SIGLET__VAULT__TOKEN_FILE
-              value: "/vault/secrets/.vault-token"
             - name: SIGLET__VAULT__SIGNING_KEY_NAME
               value: "signing-siglet"
+            - name: SIGLET__VAULT__MOUNT_PATH
+              value: "participants"
+            - name: SIGLET__VAULT__TOKEN_SUBPATH
+              value: "siglet/client-tokens"
             - name: SIGLET__VAULT__USE_HTTP_RESOLUTION
               value: "true"
+            - name: SIGLET__VAULT__AUTH__TYPE
+              value: "token_exchange"
+            - name: SIGLET__VAULT__AUTH__EXCHANGE_URL
+              value: {{ $jwtlet | quote }}
+            # Projected token with an explicit audience matching jwtlet's `client_audience`;
+            # the default SA token only carries that audience when the cluster's
+            # --api-audiences happens to match. Re-read on every token acquisition, so
+            # kubelet rotation is safe.
+            - name: SIGLET__VAULT__AUTH__SUBJECT_TOKEN_FILE
+              value: "/var/run/secrets/jwtlet/token"
+            - name: SIGLET__VAULT__AUTH__AUDIENCE
+              value: {{ .Values.global.tokenExchangeAudience | quote }}
+            - name: SIGLET__VAULT__AUTH__SCOPE
+              value: "read"
+            - name: SIGLET__VAULT__AUTH__ROLE
+              value: "siglet-role"
             - name: SIGLET__TOKEN__ISSUER
               value: "siglet-issuer"
             - name: SIGLET__TOKEN__REFRESH_ENDPOINT
@@ -122,9 +121,7 @@ spec:
             - name: siglet-config
               mountPath: /config
               readOnly: true
-            - name: vault-secrets
-              mountPath: /vault/secrets
-              readOnly: true
+            {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /health

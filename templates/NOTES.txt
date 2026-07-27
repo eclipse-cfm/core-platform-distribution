@@ -9,8 +9,10 @@ Enabled components:
   Security: {{ if .Values.security.jwtlet.enabled }}jwtlet {{ end }}{{ if .Values.security.clearglass.enabled }}clearglass{{ end }}
   Infra:    {{ if .Values.postgresql.enabled }}postgresql {{ end }}{{ if .Values.vault.enabled }}vault {{ end }}{{ if .Values.nats.enabled }}nats{{ end }}
 
-The post-install hooks run in this order:
-  postgres-init -> nats-bootstrap -> vault-bootstrap -> jwtlet-seed -> {issuerservice,provision-manager,tenant-manager}-seed
+Bootstrap Jobs (postgres-init, nats-bootstrap, vault-bootstrap, siglet-seed) are plain,
+release-owned Jobs that run concurrently with the workloads; each waits for what it needs.
+The seed hooks then run post-install in weight order:
+  jwtlet-seed -> {issuerservice,provision-manager,tenant-manager}-seed
 
 Watch the rollout:
   kubectl -n {{ include "cpd.namespace" . }} get pods,jobs -w
