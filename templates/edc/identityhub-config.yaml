@@ -20,8 +20,11 @@ data:
   web.http.identity.path: "/api/identity"
   web.http.identity.auth.key: "password"
   web.http.credentials.port: "7082"
-  web.http.credentials.path: "/api/credentials"
+  web.http.credentials.path: {{ $c.credentials.path | quote }}
   web.http.did.port: "7083"
+  # Kept at the root: the did:web path is dictated by the DID itself, and the
+  # `edc.identityhub.did.path` prefix is carried by the participant DIDs, not by
+  # this context. The HTTPRoute forwards it unrewritten.
   web.http.did.path: "/"
   web.http.sts.port: "7084"
   web.http.sts.path: "/api/sts"

@@ -16,6 +16,45 @@ Watch the rollout:
   kubectl -n {{ include "cpd.namespace" . }} get pods,jobs -w
 
 Application routes are exposed on host "{{ .Values.global.host }}" via the "{{ .Values.global.gatewayName }}" gateway.
+{{- if .Values.global.external.enabled }}
+
+Counterparty-facing endpoints (DSP + DCP). These carry NO clearglass forward-auth —
+each one does its own in-app access control:
+{{- if .Values.edc.controlplane.enabled }}{{ if .Values.edc.controlplane.protocol.exposed }}
+  DSP                {{ include "cpd.dspBaseUrl" . }}/<participantContextId>/http-dsp-profile-2025-1
+{{- end }}{{ end }}
+{{- if .Values.edc.identityhub.enabled }}{{ if .Values.edc.identityhub.credentials.exposed }}
+  Credential Service {{ include "cpd.credentialsBaseUrl" . }}/v1/participants/<participantContextId>
+{{- end }}{{ end }}
+{{- if .Values.edc.issuerservice.enabled }}{{ if .Values.edc.issuerservice.issuance.exposed }}
+  Issuance           {{ include "cpd.issuanceBaseUrl" . }}/v1beta/participants/issuer
+{{- end }}{{ end }}
+{{- if .Values.edc.issuerservice.enabled }}{{ if .Values.edc.issuerservice.did.exposed }}
+  Issuer DID         {{ include "cpd.issuerDid" . }}
+                     -> {{ .Values.global.external.scheme }}://{{ include "cpd.authorityFor" (dict "host" (include "cpd.issuerserviceDidHost" .) "ctx" .) }}/issuer/did.json
+{{- end }}{{ end }}
+{{- if .Values.edc.identityhub.enabled }}{{ if .Values.edc.identityhub.did.exposed }}
+  Participant DIDs   {{ include "cpd.identityhubDidBase" . }}:<participantContextId>
+                     -> {{ .Values.global.external.scheme }}://{{ include "cpd.authorityFor" (dict "host" (include "cpd.identityhubDidHost" .) "ctx" .) }}/<participantContextId>/did.json
+                     Mint participant DIDs with exactly this prefix — IdentityHub
+                     resolves a DID document by the request URL, so a DID on any
+                     other host will not resolve through the gateway.
+{{- end }}{{ end }}
+
+did:web identifiers are resolved by the runtimes from INSIDE the cluster too, so
+these hostnames must resolve to the gateway from both inside and outside:
+{{- if .Values.edc.identityhub.enabled }}{{ if .Values.edc.identityhub.did.exposed }}
+  {{ include "cpd.identityhubDidHost" . }}
+{{- end }}{{ end }}
+{{- if .Values.edc.issuerservice.enabled }}{{ if .Values.edc.issuerservice.did.exposed }}
+  {{ include "cpd.issuerserviceDidHost" . }}
+{{- end }}{{ end }}
+Verify with:
+  kubectl -n {{ include "cpd.namespace" . }} run didcheck --rm -it --restart=Never --image=curlimages/curl -- \
+    curl -sS {{ .Values.global.external.scheme }}://{{ include "cpd.authorityFor" (dict "host" (include "cpd.issuerserviceDidHost" .) "ctx" .) }}/issuer/did.json
+If that fails, add CoreDNS rewrites for them (see README) or set
+global.external.enabled=false to fall back to in-cluster URLs.
+{{- end }}
 {{ if .Values.global.debug.enabled }}
 NOTE: debug mode is ON — JVM apps expose a JDWP agent on port 1044 and dev credentials are in use.
 {{- end }}

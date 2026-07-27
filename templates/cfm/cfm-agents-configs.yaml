@@ -38,9 +38,13 @@ data:
     vault.url: {{ include "cpd.vaultUrl" . }}
     identityhub.url: http://{{ include "cpd.fqdn" (dict "svc" "identityhub" "ctx" $) }}:7081/api/identity
     identityhub.sts.url: http://{{ include "cpd.fqdn" (dict "svc" "identityhub" "ctx" $) }}:7084/api/sts/token
-    identityhub.cs.url: http://{{ include "cpd.fqdn" (dict "svc" "identityhub" "ctx" $) }}:7082/api/credentials/v1/participants/%s
+    # Counterparty-facing: published as the CredentialService endpoint in the
+    # participant's DID document, so it must be the external address.
+    identityhub.cs.url: {{ include "cpd.credentialsBaseUrl" . }}/v1/participants/%s
     controlplane.url: http://{{ include "cpd.fqdn" (dict "svc" "controlplane" "ctx" $) }}:8081/api/mgmt
-    controlplane.protocol.url: http://{{ include "cpd.fqdn" (dict "svc" "controlplane" "ctx" $) }}:8082/api/dsp/%s/http-dsp-profile-2025-1
+    # Counterparty-facing: the participant's DSP endpoint. Must match
+    # edc.dsp.callback.address in controlplane-config.
+    controlplane.protocol.url: {{ include "cpd.dspBaseUrl" . }}/%s/http-dsp-profile-2025-1
 
     tokenexchange.url: http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080
     tokenexchange.audience: {{ .Values.global.tokenExchangeAudience }}
@@ -70,9 +74,13 @@ data:
     dsn: postgres://cfm:cfm@{{ include "cpd.pgHost" . }}:{{ .Values.postgresql.connection.port }}/cfm?sslmode=disable
     vault.url: {{ include "cpd.vaultUrl" . }}
     identityhub.url: http://{{ include "cpd.fqdn" (dict "svc" "identityhub" "ctx" $) }}:7081/api/identity
-    identityhub.cs.url: http://{{ include "cpd.fqdn" (dict "svc" "identityhub" "ctx" $) }}:7082/api/credentials/v1/participants/%s
-    controlplane.protocol.url: http://{{ include "cpd.fqdn" (dict "svc" "controlplane" "ctx" $) }}:8082/api/dsp/%s/http-dsp-profile-2025-1
-    controlplane.dataservice.url: http://{{ include "cpd.fqdn" (dict "svc" "controlplane" "ctx" $) }}:8082/api/dsp/%s/.well-known/dspace-version
+    # Counterparty-facing: published as the CredentialService endpoint in the
+    # participant's DID document, so it must be the external address.
+    identityhub.cs.url: {{ include "cpd.credentialsBaseUrl" . }}/v1/participants/%s
+    # Counterparty-facing: the participant's DSP endpoint. Must match
+    # edc.dsp.callback.address in controlplane-config.
+    controlplane.protocol.url: {{ include "cpd.dspBaseUrl" . }}/%s/http-dsp-profile-2025-1
+    controlplane.dataservice.url: {{ include "cpd.dspBaseUrl" . }}/%s/.well-known/dspace-version
 
     tokenexchange.url: http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080
     tokenexchange.audience: {{ .Values.global.tokenExchangeAudience }}

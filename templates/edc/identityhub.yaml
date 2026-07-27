@@ -151,4 +151,48 @@ spec:
       backendRefs:
         - name: identityhub
           port: 7081
+{{- if $c.credentials.exposed }}
+    # DCP Credential Service (web.http.credentials) → port 7082, unrewritten.
+    # No jwt-auth ExtensionRef: the presentation endpoint authenticates the caller
+    # in-app against its self-issued token. See edc.identityhub.credentials.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ $c.credentials.path | quote }}
+      backendRefs:
+        - name: identityhub
+          port: 7082
+{{- end }}
+{{- if $c.did.exposed }}
+---
+# did:web documents (web.http.did) → port 7083, on a dedicated hostname.
+#
+# Matches "/" and forwards unrewritten: IdentityHub's DidWebController reconstructs
+# the DID from the request URL (authority + path) and looks it up by exact match, so
+# the authority and path the app sees are exactly what the DID encodes. Participant
+# DIDs must therefore read {{ include "cpd.identityhubDidBase" . }}:<participantContextId>.
+# DID documents are public, so no jwt-auth ExtensionRef.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: identityhub-did
+  namespace: {{ include "cpd.namespace" . }}
+  labels:
+    {{- include "cpd.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.global.gatewayName }}
+      kind: Gateway
+      sectionName: http
+  hostnames:
+    - {{ include "cpd.identityhubDidHost" . | quote }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: identityhub
+          port: 7083
+{{- end }}
 {{- end }}

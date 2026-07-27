@@ -68,6 +68,7 @@ useful knobs:
 | `imageRegistry`                                                | Default registry prefixed to first-party images without a host (default `ghcr.io`). |
 | `global.namespace`                                             | Target namespace / DNS segment (default `edc-v`).                                   |
 | `global.host`, `global.gatewayName`, `global.gatewayClassName` | Gateway/HTTPRoute exposure.                                                         |
+| `global.external.*`                                            | Externally reachable Gateway address; see [External exposure](#external-exposure-dsp--dcp). |
 | `global.imagePullPolicy`                                       | Default pull policy; each component can override via its own `imagePullPolicy`.     |
 | `global.debug.enabled`                                         | Emit a JDWP agent (port 1044) for the JVM-based EDC apps. **Dev only.**             |
 | `postgresql` / `vault` / `nats`                                | Enable/disable and configure the in-chart infra services.                           |
@@ -82,6 +83,73 @@ Each `edc.*` / `cfm.*` / `security.*` component exposes `enabled`, `image.{repo,
 > **Defaults are dev-oriented.** Vault runs in dev mode with a `root` token, Postgres
 > persistence is disabled, credentials are placeholders, and debug agents are on. Review and
 > harden every one of these before any non-local use.
+
+## External exposure (DSP / DCP)
+
+Most APIs in this chart are operator-facing and sit behind the clearglass forward-auth
+middleware (`jwt-auth`), which requires a jwtlet-issued token. The DSP and DCP endpoints are
+different: they are talked to by *counterparties*, who hold no jwtlet token and are instead
+authenticated in-app — DSP validates DCP credentials, the credential service validates the
+caller's self-issued token, and DID documents are public. They are therefore routed
+**without** the `jwt-auth` middleware, and their paths are forwarded **unrewritten**:
+
+| External URL                                                                  | Backend                | `web.http.*` context |
+|-------------------------------------------------------------------------------|------------------------|----------------------|
+| `<host>/api/dsp/<participantContextId>/http-dsp-profile-2025-1`                | `controlplane:8082`    | `protocol`           |
+| `<host>/api/credentials/v1/participants/<participantContextId>`               | `identityhub:7082`     | `credentials`        |
+| `<host>/api/issuance/v1beta/participants/issuer`                              | `issuerservice:10012`  | `issuance`           |
+| `identity.<host>/<participantContextId>/did.json`                             | `identityhub:7083`     | `did`                |
+| `issuer.<host>/issuer/did.json`                                               | `issuerservice:10016`  | `did`                |
+
+Each is toggleable (`edc.<component>.<endpoint>.exposed`). The three path-based ones are
+configurable via `.path`, which must stay in sync with the matching `web.http.<context>.path`
+because there is no `URLRewrite` in between. The two DID endpoints get their **own hostname**
+(`edc.<component>.did.host`, defaulting to `identity.`/`issuer.` + the external host) and their
+own HTTPRoute matching `/` — see below.
+
+### Advertised URLs
+
+Routing traffic *in* is only half the job: the URLs the platform publishes about itself must
+also be externally resolvable. `global.external` drives all of them — the DSP callback address
+(`edc.dsp.callback.address`), the `CredentialService` and `IssuerService` endpoints written
+into DID documents, and the `did:web` identifiers themselves. Set `global.external.enabled=false`
+to put every one of them back to the in-cluster Service FQDN; the HTTPRoutes stay either way.
+
+### `did:web` and the DNS requirement
+
+`did:web` identifiers encode the URL their document is served from, and EDC reconstructs the
+DID from the *incoming request* (authority + path) to look it up. Two consequences:
+
+1. **The DID routes cannot be rewritten**, and the DID's authority is whatever `Host` the
+   backend sees. Each DID endpoint therefore gets a dedicated hostname, which leaves the path
+   segments free for the participant context id alone:
+   `did:web:identity.jad.localhost:alice` ⇄ `GET http://identity.jad.localhost/alice/did.json`.
+   Participant DIDs are minted outside this chart (ih-agent / participant profiles) —
+   `helm status` prints the exact prefix to build them from.
+2. **DIDs are resolved from inside the cluster too** (e.g. the control plane resolving the issuer
+   DID), so the DID hostnames must resolve to the Gateway from *both* sides. On a plain
+   KinD/Minikube cluster a `*.localhost` name resolves to the pod's own loopback and resolution
+   fails. Verify with:
+
+```bash
+kubectl -n edc-v run didcheck --rm -it --restart=Never --image=curlimages/curl -- curl -sS http://issuer.jad.localhost/issuer/did.json
+```
+
+If it fails, point the names at the Traefik gateway Service in CoreDNS — add `rewrite` lines to
+the `coredns` ConfigMap in `kube-system`, above the `kubernetes` plugin, using your controller's
+actual Service name:
+
+```bash
+kubectl -n kube-system get svc -l app.kubernetes.io/name=traefik
+```
+
+```
+rewrite name identity.jad.localhost traefik.traefik.svc.cluster.local
+rewrite name issuer.jad.localhost   traefik.traefik.svc.cluster.local
+```
+
+The same applies to `global.host` itself if counterparty connectors run in this cluster and
+call each other's DSP endpoints.
 
 ## Publishing
 

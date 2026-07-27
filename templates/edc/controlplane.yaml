@@ -49,6 +49,8 @@ spec:
               name: management-port
             - containerPort: 8080
               name: default-port
+            - containerPort: 8082
+              name: protocol-port
             - containerPort: 1044
               name: debug-port
           livenessProbe:
@@ -145,4 +147,20 @@ spec:
         - name: controlplane
           port: 8081
           weight: 1
+{{- if $c.protocol.exposed }}
+    # DSP protocol API (web.http.protocol) → port 8082, path passed through
+    # unrewritten so the advertised callback address matches what the app serves.
+    #
+    # No jwt-auth ExtensionRef, by design: DSP messages carry DCP credentials that
+    # the control plane validates in-app. Counterparties hold no jwtlet token, so a
+    # clearglass forward-auth in front of this would reject every request.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ $c.protocol.path | quote }}
+      backendRefs:
+        - name: controlplane
+          port: 8082
+          weight: 1
+{{- end }}
 {{- end }}
