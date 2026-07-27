@@ -140,23 +140,17 @@ spec:
               # Create signing key for Siglet
               vault write -f transit/keys/signing-siglet type=ed25519 2>/dev/null && echo "Signing key created" || echo "Signing key already exists"
 
-              # Create policy for signer
-              cat <<EOF | vault policy write transit-policy - || { echo "Failed to write policy"; exit 1; }
+              cat <<EOF | vault policy write siglet-transit-policy - || { echo "Failed to write policy"; exit 1; }
               path "sys/health" {
                 capabilities = ["read"]
               }
 
-              # TODO revisit these permissions, we may want to scope them down further
-              path "secret/*" {
-                capabilities = ["create", "read", "update", "delete", "list"]
-              }
-
               # Allow access to Transit engine for JWT signing
-              path "transit/sign/*" {
+              path "transit/sign/signing-siglet" {
                 capabilities = ["create", "update"]
               }
 
-              path "transit/keys/*" {
+              path "transit/keys/signing-siglet" {
                 capabilities = ["read"]
               }
 
@@ -166,12 +160,16 @@ spec:
 
               EOF
 
-              vault write auth/kubernetes/role/siglet-role \
-                bound_service_account_names=siglet-sa \
-                bound_service_account_namespaces={{ include "cpd.namespace" . }} \
-                policies=transit-policy \
-                ttl=1h
-
+              vault write auth/jwt/role/siglet-role -<<EOF || { echo "Failed to create JWT role"; exit 1; }
+              {
+                "role_type": "jwt",
+                "user_claim": "sub",
+                "bound_issuer": "http://{{ $jwtletHost }}:8080",
+                "bound_audiences": ["{{ .Values.global.tokenExchangeAudience }}"],
+                "token_policies": ["participants-restricted", "participant-transit-policy", "siglet-transit-policy"],
+                "clock_skew_leeway": 60
+              }
+              EOF
 
               echo "###############################"
               echo "Starting jwtlet vault bootstrap"

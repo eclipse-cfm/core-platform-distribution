@@ -544,7 +544,6 @@ edc:
     image:
       repo: eclipse-dataplane-core/dsdk-facet-rs/siglet
       tag: latest
-    vaultAgentImage: hashicorp/vault:latest
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -618,8 +617,9 @@ cfm:
     resources: {}
 
 # =============================================================================
-# Seed jobs run as Helm post-install/post-upgrade hooks; the infra bootstrap jobs
-# (postgres/nats/vault) are plain, release-owned Jobs (see templates/hooks/).
+# The app seed jobs run as Helm post-install/post-upgrade hooks; the bootstrap jobs
+# (postgres/nats/vault/siglet) are plain, release-owned Jobs that run concurrently
+# with the workloads (see templates/hooks/).
 # =============================================================================
 seedJobs:
   # Delete-policy for the seed-job HOOKS. Hook resources are NOT tracked by the
@@ -648,6 +648,10 @@ seedJobs:
   natsAuthBootstrap:
     enabled: true
   jwtletSeed:
+    enabled: true
+  # Creates the JWTlet mapping siglet needs to exchange its SA token at startup. A plain
+  # Job, not a hook: it must run concurrently with the siglet Deployment (see the job).
+  sigletSeed:
     enabled: true
   issuerserviceSeed:
     enabled: true
