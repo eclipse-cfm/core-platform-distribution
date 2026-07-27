@@ -123,7 +123,7 @@ DID from the *incoming request* (authority + path) to look it up. Two consequenc
 1. **The DID routes cannot be rewritten**, and the DID's authority is whatever `Host` the
    backend sees. Each DID endpoint therefore gets a dedicated hostname, which leaves the path
    segments free for the participant context id alone:
-   `did:web:identity.jad.localhost:alice` ⇄ `GET http://identity.jad.localhost/alice/did.json`.
+   `did:web:identity.cpd.localhost:alice` ⇄ `GET http://identity.cpd.localhost/alice/did.json`.
    Participant DIDs are minted outside this chart (ih-agent / participant profiles) —
    `helm status` prints the exact prefix to build them from.
 2. **DIDs are resolved from inside the cluster too** (e.g. the control plane resolving the issuer
@@ -132,7 +132,7 @@ DID from the *incoming request* (authority + path) to look it up. Two consequenc
    fails. Verify with:
 
 ```bash
-kubectl -n edc-v run didcheck --rm -it --restart=Never --image=curlimages/curl -- curl -sS http://issuer.jad.localhost/issuer/did.json
+kubectl -n edc-v run didcheck --rm -it --restart=Never --image=curlimages/curl -- curl -sS http://issuer.cpd.localhost/issuer/did.json
 ```
 
 If it fails, point the names at the Traefik gateway Service in CoreDNS — add `rewrite` lines to
@@ -144,8 +144,8 @@ kubectl -n kube-system get svc -l app.kubernetes.io/name=traefik
 ```
 
 ```
-rewrite name identity.jad.localhost traefik.traefik.svc.cluster.local
-rewrite name issuer.jad.localhost   traefik.traefik.svc.cluster.local
+rewrite name identity.cpd.localhost traefik.traefik.svc.cluster.local
+rewrite name issuer.cpd.localhost   traefik.traefik.svc.cluster.local
 ```
 
 The same applies to `global.host` itself if counterparty connectors run in this cluster and

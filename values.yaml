@@ -32,7 +32,7 @@ global:
   clusterDomain: svc.cluster.local
 
   # HTTPRoute hostname all application routes are exposed under.
-  host: jad.localhost
+  host: cpd.localhost
   gatewayName: edcv-gateway
   gatewayClassName: traefik
 
