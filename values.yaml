@@ -32,9 +32,31 @@ global:
   clusterDomain: svc.cluster.local
 
   # HTTPRoute hostname all application routes are exposed under.
-  host: jad.localhost
+  host: cpd.localhost
   gatewayName: edcv-gateway
   gatewayClassName: traefik
+
+  # Externally reachable address of the Gateway, as seen by a COUNTERPARTY outside
+  # the cluster. Governs the URLs this platform advertises about itself: the DSP
+  # callback address, the DCP credential-service and issuance service endpoints,
+  # and the did:web identifiers. The endpoints themselves are exposed via the
+  # HTTPRoutes configured under `edc.*` below.
+  #
+  # !! IMPORTANT !! did:web identifiers are resolved by the connector runtimes as
+  # well, i.e. from INSIDE the cluster, so `host` must resolve to the Gateway from
+  # BOTH sides. On a plain KinD/Minikube cluster a `*.localhost` name resolves to
+  # the pod's own loopback and DID resolution will fail — add a CoreDNS rewrite to
+  # the Traefik service, or set `host` to a name that resolves correctly both ways
+  # (see README, "External exposure").
+  external:
+    # "" => global.host
+    host: ""
+    # Port the Gateway is reachable on from outside. 80/443 are omitted from the
+    # generated URLs and DIDs; anything else is appended (and percent-encoded in
+    # did:web identifiers, e.g. did:web:example.com%3A8080:issuer).
+    port: 80
+    # Must agree with `edc.iam.did.web.use.https` in the component ConfigMaps.
+    scheme: http
 
   # RFC 8693 subject-token wiring. The audience must match jwtlet's `client_audience`
   # (the Kubernetes cluster issuer).
@@ -502,11 +524,46 @@ edc:
     #     - name: partner
     #       id: "did:web:partner.example.com:issuer"
     trustedIssuers: []
+    # DSP protocol API (web.http.protocol, container port 8082).
+    #
+    # Deliberately exposed WITHOUT the clearglass forward-auth middleware: DSP
+    # requests carry their own DCP credentials and the control plane validates them
+    # in-app. Putting jwt-auth in front would reject every counterparty request,
+    # since counterparties do not hold jwtlet-issued tokens.
+    protocol:
+      exposed: true
+      # Passed through to the backend unrewritten, so it MUST equal
+      # `web.http.protocol.path` in the controlplane ConfigMap. Also the base of the
+      # advertised `edc.dsp.callback.address`.
+      path: /api/dsp
   identityhub:
     enabled: true
     # Clearglass forward-auth (jwt-auth) on the HTTPRoute; see edc.controlplane.authEnabled.
     authEnabled: true
     configMapName: ih-config
+    # DCP Credential Service (web.http.credentials, container port 7082). Exposed
+    # without jwt-auth — the presentation endpoint authenticates the caller in-app
+    # against its self-issued token. See edc.controlplane.protocol.
+    credentials:
+      exposed: true
+      # Unrewritten; MUST equal `web.http.credentials.path` in the ih ConfigMap.
+      path: /api/credentials
+    # did:web document endpoint (web.http.did, container port 7083).
+    #
+    # Served on a DEDICATED hostname with its own HTTPRoute, matching "/" and
+    # forwarding unrewritten. IdentityHub derives the DID from the request URL
+    # (authority + path) and looks it up by exact match, so a dedicated host keeps
+    # the DID's path segments free for the participant context id alone:
+    #     did:web:<host>:<participantContextId>
+    #       <-> GET http://<host>/<participantContextId>/did.json
+    # Participant DIDs are minted outside this chart (ih-agent / participant
+    # profiles); `helm status` prints the exact prefix to build them from.
+    # DID documents are public by design, so no jwt-auth here either.
+    did:
+      exposed: true
+      # "" => "identity.<global.external.host or global.host>". Must resolve to the
+      # Gateway from inside the cluster as well as outside.
+      host: ""
     image:
       repo: eclipse-cfm/platform-images/identity-hub
       tag: latest
@@ -537,6 +594,42 @@ edc:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # DCP issuance API (web.http.issuance, container port 10012). Exposed without
+    # jwt-auth — holders authenticate with their own DCP token, validated in-app.
+    issuance:
+      exposed: true
+      # Unrewritten; MUST equal `web.http.issuance.path` in the issuerservice
+      # ConfigMap. Also the base of the IssuerService serviceEndpoint published in
+      # the issuer's DID document by the issuerservice-seed job.
+      path: /api/issuance
+    # did:web document endpoint (web.http.did, container port 10016). Dedicated
+    # hostname, matching "/" unrewritten, for the same reason as
+    # edc.identityhub.did. The issuer DID is derived from it, with the issuer's
+    # participantContextId as the final segment: did:web:<host>:issuer
+    did:
+      exposed: true
+      # "" => "issuer.<global.external.host or global.host>". Must resolve to the
+      # Gateway from inside the cluster as well as outside.
+      #
+      # This is the normal knob: the hostname is the constrained end (DNS, gateway,
+      # certificates), and the issuer DID is generated to match it, so the DID and the
+      # HTTPRoute serving it can never disagree. Mutually exclusive with `id` below.
+      host: ""
+      # Escape hatch: the issuer's DID, verbatim, overriding the derivation from `host`.
+      # Use when the DID is not ours to choose — assigned by a dataspace registry, or one
+      # that must stay stable while the infrastructure under it moves (credentials already
+      # issued reference it, and changing it orphans them).
+      #
+      # This inverts the direction: per the did:web spec the DID dictates the URL, so the
+      # HTTPRoute hostname is parsed back out of the DID rather than configured separately
+      # — setting both `id` and `host` is an error. Path segments after the authority are
+      # free; they only decide where the document is served (did:web:h:a:b -> /a/b/did.json)
+      # and need not relate to the participant context id, since IssuerService looks the
+      # document up by the DID it reconstructs from the request, not by context.
+      #   id: "did:web:issuer.example.com:issuer"
+      #   id: "did:web:issuer.example.com%3A8080:issuer"   # non-default gateway port
+      #   id: "did:web:registry.example.org:issuers:acme"  # -> /issuers/acme/did.json
+      id: ""
   siglet:
     enabled: true
     # Clearglass forward-auth (jwt-auth) on the HTTPRoute; see edc.controlplane.authEnabled.

@@ -22,12 +22,15 @@ data:
   web.http.sts.port: "10011"
   web.http.sts.path: "/api/sts"
   web.http.issuance.port: "10012"
-  web.http.issuance.path: "/api/issuance"
+  web.http.issuance.path: {{ $c.issuance.path | quote }}
   web.http.issueradmin.port: "10013"
   web.http.issueradmin.path: "/api/admin"
   web.http.identity.port: "10015"
   web.http.identity.path: "/api/identity"
   web.http.did.port: "10016"
+  # Root, for the same reason as identityhub: the served path comes from the DID
+  # (did:web:<authority>:issuer -> /issuer/did.json), and the HTTPRoute matching
+  # `edc.issuerservice.did.path` forwards it unrewritten.
   web.http.did.path: "/"
   web.http.statuslist.port: "9999"
   web.http.statuslist.path: "/statuslist"

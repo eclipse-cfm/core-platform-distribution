@@ -104,10 +104,128 @@ platform: edcv
 {{- end -}}
 
 {{/* -------------------------------------------------------------------------
-     Trusted-issuer DID (URL-encoded port, e.g. did:web:<host>%3A10016:issuer).
+     External (outside-the-cluster) address of the Gateway.
+
+     The DSP and DCP endpoints are the only ones a *counterparty* talks to, so the
+     URLs the platform advertises about itself (DSP callback address, credential
+     service endpoint, issuance service endpoint, did:web identifiers) must be
+     resolvable from outside. These helpers build that address from `global.external`.
+
+     NOTE: did:web identifiers are resolved by the connector runtimes too, i.e. from
+     INSIDE the cluster. `global.external.host` must therefore resolve to the
+     Gateway from both sides (see README, "External exposure").
+     ------------------------------------------------------------------------- */}}
+{{- define "cpd.externalHost" -}}
+{{- .Values.global.external.host | default .Values.global.host -}}
+{{- end -}}
+
+{{/* "host" or "host:port" for an arbitrary hostname served by the Gateway — the
+     port is omitted when it is the scheme default.
+     Usage: {{ include "cpd.authorityFor" (dict "host" "issuer.example.com" "ctx" $) }} */}}
+{{- define "cpd.authorityFor" -}}
+{{- $e := .ctx.Values.global.external -}}
+{{- $port := $e.port | int -}}
+{{- if or (and (eq $e.scheme "http") (eq $port 80)) (and (eq $e.scheme "https") (eq $port 443)) -}}
+{{- .host -}}
+{{- else -}}
+{{- printf "%s:%d" .host $port -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "cpd.externalAuthority" -}}
+{{- include "cpd.authorityFor" (dict "host" (include "cpd.externalHost" .) "ctx" .) -}}
+{{- end -}}
+
+{{- define "cpd.externalBaseUrl" -}}
+{{- printf "%s://%s" .Values.global.external.scheme (include "cpd.externalAuthority" .) -}}
+{{- end -}}
+
+{{/* -------------------------------------------------------------------------
+     did:web hostnames.
+
+     The two DID endpoints each get their own hostname rather than a path prefix on
+     `global.host`. EDC's DidWebController derives the DID from the request URL
+     (authority + path) and looks it up by exact match, so a shared host would force
+     a routing prefix into every DID; a dedicated host keeps the DID's path segments
+     free for the participant context id alone:
+       did:web:<didHost>:<participantContextId>
+         <-> GET <scheme>://<didHost>/<participantContextId>/did.json
+     Both hostnames must therefore point at the Gateway, from inside the cluster as
+     well as outside (see README, "External exposure").
+     ------------------------------------------------------------------------- */}}
+{{- define "cpd.identityhubDidHost" -}}
+{{- .Values.edc.identityhub.did.host | default (printf "identity.%s" (include "cpd.externalHost" .)) -}}
+{{- end -}}
+
+{{/* Hostname the issuer's DID document is served on.
+
+     Normally derived from `did.host` (or `issuer.<externalHost>`), with the DID generated to
+     match. When `did.id` pins the DID outright that direction inverts — the DID then dictates the
+     hostname, per the did:web spec, so it is parsed back out here rather than configured
+     separately. Either way there is exactly one input, and the route and the DID cannot drift.
+
+     did:web:<authority>[:<segment>...], where a non-default port is percent-encoded into the
+     authority. HTTPRoute hostnames carry no port, so it is dropped after decoding. */}}
+{{- define "cpd.issuerserviceDidHost" -}}
+{{- $d := .Values.edc.issuerservice.did -}}
+{{- if and $d.id $d.host -}}
+{{- fail "edc.issuerservice.did: set either `id` (explicit DID; the route hostname is derived from it) or `host` (hostname; the DID is derived from it) — not both" -}}
+{{- end -}}
+{{- if $d.id -}}
+{{- $authority := $d.id | trimPrefix "did:web:" | splitList ":" | first | replace "%3A" ":" -}}
+{{- splitList ":" $authority | first -}}
+{{- else -}}
+{{- $d.host | default (printf "issuer.%s" (include "cpd.externalHost" .)) -}}
+{{- end -}}
+{{- end -}}
+
+{{/* did:web authority segment. EDC's DidWebParser URL-encodes URI.getAuthority(),
+     so a non-default port appears percent-encoded: did:web:host%3A8080:foo. */}}
+{{- define "cpd.didWebAuthorityFor" -}}
+{{- include "cpd.authorityFor" . | replace ":" "%3A" -}}
+{{- end -}}
+
+{{/* -------------------------------------------------------------------------
+     Trusted-issuer DID: did:web:<issuer did host>:issuer, served by IssuerService at
+     GET <scheme>://<issuer did host>/issuer/did.json. The trailing segment is the
+     issuer's participantContextId ("issuer", as created by the issuerservice-seed job).
+
+     `edc.issuerservice.did.id` overrides it — for a DID that is not ours to choose (assigned by
+     a dataspace registry, or one that must stay stable while the infrastructure under it moves,
+     since credentials already issued reference it). The route hostname then follows from the
+     DID; see cpd.issuerserviceDidHost.
      ------------------------------------------------------------------------- */}}
 {{- define "cpd.issuerDid" -}}
-{{- printf "did:web:%s%%3A10016:issuer" (include "cpd.fqdn" (dict "svc" "issuerservice" "ctx" .)) -}}
+{{- .Values.edc.issuerservice.did.id | default (printf "did:web:%s:issuer" (include "cpd.didWebAuthorityFor" (dict "host" (include "cpd.issuerserviceDidHost" .) "ctx" .))) -}}
+{{- end -}}
+
+{{/* -------------------------------------------------------------------------
+     Prefix every IdentityHub participant DID must carry — i.e. everything up to the
+     participant context id:
+       <base>:<participantContextId>
+         <-> GET <scheme>://<ih did host>/<participantContextId>/did.json
+     Participant DIDs are minted OUTSIDE this chart (ih-agent / participant
+     profiles) — this value is surfaced in NOTES.txt so they can be built to match.
+     ------------------------------------------------------------------------- */}}
+{{- define "cpd.identityhubDidBase" -}}
+{{- printf "did:web:%s" (include "cpd.didWebAuthorityFor" (dict "host" (include "cpd.identityhubDidHost" .) "ctx" .)) -}}
+{{- end -}}
+
+{{/* -------------------------------------------------------------------------
+     Advertised base URLs for the three counterparty-facing HTTP APIs. These are
+     served on the Gateway's port under the same path the app itself uses (no
+     URLRewrite), so the external URL is just <externalBase><path>.
+     ------------------------------------------------------------------------- */}}
+{{- define "cpd.dspBaseUrl" -}}
+{{- printf "%s%s" (include "cpd.externalBaseUrl" .) .Values.edc.controlplane.protocol.path -}}
+{{- end -}}
+
+{{- define "cpd.credentialsBaseUrl" -}}
+{{- printf "%s%s" (include "cpd.externalBaseUrl" .) .Values.edc.identityhub.credentials.path -}}
+{{- end -}}
+
+{{- define "cpd.issuanceBaseUrl" -}}
+{{- printf "%s%s" (include "cpd.externalBaseUrl" .) .Values.edc.issuerservice.issuance.path -}}
 {{- end -}}
 
 {{/* -------------------------------------------------------------------------

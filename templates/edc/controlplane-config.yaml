@@ -30,8 +30,15 @@ data:
   web.http.port: "8080"
   web.http.path: "/api"
   web.http.protocol.port: "8082"
-  web.http.protocol.path: "/api/dsp"
+  web.http.protocol.path: {{ .Values.edc.controlplane.protocol.path | quote }}
   web.http.protocol.virtual: "true"
+  # Address counterparties are told to call back on. Without this, EDC derives
+  # "http://<edc.hostname>:8082/api/dsp/%s" — an in-cluster FQDN no external
+  # counterparty can reach. The trailing "%s" is the participantContextId
+  # placeholder that ParticipantWebhookResolver fills in; it is required because
+  # web.http.protocol.virtual is true. The DSP profile segment
+  # (/http-dsp-profile-2025-1) is appended by the profile context itself.
+  edc.dsp.callback.address: {{ printf "%s/%%s" (include "cpd.dspBaseUrl" .) | quote }}
   web.http.management.port: "8081"
   web.http.management.path: "/api/mgmt"
   web.http.control.port: "8083"
