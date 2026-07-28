@@ -48,11 +48,7 @@ global:
   # the pod's own loopback and DID resolution will fail — add a CoreDNS rewrite to
   # the Traefik service, or set `host` to a name that resolves correctly both ways
   # (see README, "External exposure").
-  #
-  # Set `enabled: false` to revert every advertised URL to the in-cluster Service
-  # FQDN it used before (the HTTPRoutes stay in place either way).
   external:
-    enabled: true
     # "" => global.host
     host: ""
     # Port the Gateway is reachable on from outside. 80/443 are omitted from the
@@ -614,7 +610,26 @@ edc:
       exposed: true
       # "" => "issuer.<global.external.host or global.host>". Must resolve to the
       # Gateway from inside the cluster as well as outside.
+      #
+      # This is the normal knob: the hostname is the constrained end (DNS, gateway,
+      # certificates), and the issuer DID is generated to match it, so the DID and the
+      # HTTPRoute serving it can never disagree. Mutually exclusive with `id` below.
       host: ""
+      # Escape hatch: the issuer's DID, verbatim, overriding the derivation from `host`.
+      # Use when the DID is not ours to choose — assigned by a dataspace registry, or one
+      # that must stay stable while the infrastructure under it moves (credentials already
+      # issued reference it, and changing it orphans them).
+      #
+      # This inverts the direction: per the did:web spec the DID dictates the URL, so the
+      # HTTPRoute hostname is parsed back out of the DID rather than configured separately
+      # — setting both `id` and `host` is an error. Path segments after the authority are
+      # free; they only decide where the document is served (did:web:h:a:b -> /a/b/did.json)
+      # and need not relate to the participant context id, since IssuerService looks the
+      # document up by the DID it reconstructs from the request, not by context.
+      #   id: "did:web:issuer.example.com:issuer"
+      #   id: "did:web:issuer.example.com%3A8080:issuer"   # non-default gateway port
+      #   id: "did:web:registry.example.org:issuers:acme"  # -> /issuers/acme/did.json
+      id: ""
   siglet:
     enabled: true
     # Clearglass forward-auth (jwt-auth) on the HTTPRoute; see edc.controlplane.authEnabled.

@@ -112,8 +112,14 @@ own HTTPRoute matching `/` — see below.
 Routing traffic *in* is only half the job: the URLs the platform publishes about itself must
 also be externally resolvable. `global.external` drives all of them — the DSP callback address
 (`edc.dsp.callback.address`), the `CredentialService` and `IssuerService` endpoints written
-into DID documents, and the `did:web` identifiers themselves. Set `global.external.enabled=false`
-to put every one of them back to the in-cluster Service FQDN; the HTTPRoutes stay either way.
+into DID documents, and the `did:web` identifiers themselves.
+
+The issuer DID is derived from its route hostname, so the DID and the HTTPRoute serving it
+cannot disagree — `IssuerService` reconstructs the DID from the incoming request and looks it up
+by exact match, so a mismatch returns an empty document rather than an error. Set
+`edc.issuerservice.did.id` to pin the DID instead when it is not yours to choose (assigned by a
+registry, or one that must survive an infrastructure move); the route hostname is then parsed
+back out of the DID, and setting both `id` and `host` is rejected.
 
 ### `did:web` and the DNS requirement
 
@@ -129,24 +135,39 @@ DID from the *incoming request* (authority + path) to look it up. Two consequenc
 2. **DIDs are resolved from inside the cluster too** (e.g. the control plane resolving the issuer
    DID), so the DID hostnames must resolve to the Gateway from *both* sides. On a plain
    KinD/Minikube cluster a `*.localhost` name resolves to the pod's own loopback and resolution
-   fails. Verify with:
+   fails. Verify from a pod:
 
 ```bash
-kubectl -n edc-v run didcheck --rm -it --restart=Never --image=curlimages/curl -- curl -sS http://issuer.cpd.localhost/issuer/did.json
+kubectl -n edc-v run didcheck --rm -it --restart=Never --image=debian:stable-slim -- getent hosts issuer.cpd.localhost
 ```
 
-If it fails, point the names at the Traefik gateway Service in CoreDNS — add `rewrite` lines to
-the `coredns` ConfigMap in `kube-system`, above the `kubernetes` plugin, using your controller's
-actual Service name:
+It must return the Traefik Service's ClusterIP. **Use a glibc image, and not `curl`** — musl
+(Alpine, hence `curlimages/curl`) and `curl` itself each resolve `*.localhost` to loopback
+internally without querying DNS, so either fails here whether or not the setup is correct. The
+JVM runtimes that actually resolve these DIDs do neither.
 
-```bash
-kubectl -n kube-system get svc -l app.kubernetes.io/name=traefik
-```
+If it fails, point the names at the Traefik gateway Service in CoreDNS — add `rewrite` lines
+inside the `.:53` block of the `coredns` ConfigMap in `kube-system`:
 
 ```
 rewrite name identity.cpd.localhost traefik.traefik.svc.cluster.local
 rewrite name issuer.cpd.localhost   traefik.traefik.svc.cluster.local
 ```
+
+Both halves of the target are deployment-specific and getting either wrong fails **silently**,
+with the rewritten name simply falling through to the upstream resolver:
+
+- the Service name and namespace — read them off your controller:
+  ```bash
+  kubectl -n kube-system get svc -A -l app.kubernetes.io/name=traefik
+  ```
+- the trailing DNS domain, which must be the cluster's own — i.e. `global.clusterDomain` minus
+  its `svc.` prefix, **not** `cluster.local` unless that is what the cluster actually uses. A
+  cluster built with a custom `dnsDomain` (kubeadm `networking.dnsDomain`) serves only that zone,
+  so `…svc.cluster.local` NXDOMAINs there. Confirm with:
+  ```bash
+  kubectl -n kube-system get cm coredns -o jsonpath='{.data.Corefile}' | grep kubernetes
+  ```
 
 The same applies to `global.host` itself if counterparty connectors run in this cluster and
 call each other's DSP endpoints.

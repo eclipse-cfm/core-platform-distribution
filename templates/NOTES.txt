@@ -16,7 +16,6 @@ Watch the rollout:
   kubectl -n {{ include "cpd.namespace" . }} get pods,jobs -w
 
 Application routes are exposed on host "{{ .Values.global.host }}" via the "{{ .Values.global.gatewayName }}" gateway.
-{{- if .Values.global.external.enabled }}
 
 Counterparty-facing endpoints (DSP + DCP). These carry NO clearglass forward-auth —
 each one does its own in-app access control:
@@ -49,12 +48,15 @@ these hostnames must resolve to the gateway from both inside and outside:
 {{- if .Values.edc.issuerservice.enabled }}{{ if .Values.edc.issuerservice.did.exposed }}
   {{ include "cpd.issuerserviceDidHost" . }}
 {{- end }}{{ end }}
-Verify with:
-  kubectl -n {{ include "cpd.namespace" . }} run didcheck --rm -it --restart=Never --image=curlimages/curl -- \
-    curl -sS {{ .Values.global.external.scheme }}://{{ include "cpd.authorityFor" (dict "host" (include "cpd.issuerserviceDidHost" .) "ctx" .) }}/issuer/did.json
-If that fails, add CoreDNS rewrites for them (see README) or set
-global.external.enabled=false to fall back to in-cluster URLs.
-{{- end }}
+Verify from a pod (it must resolve to the gateway, NOT to loopback):
+  kubectl -n {{ include "cpd.namespace" . }} run didcheck --rm -it --restart=Never \
+    --image=debian:stable-slim -- getent hosts {{ include "cpd.issuerserviceDidHost" . }}
+If that fails, add CoreDNS rewrites for these hostnames (see README).
+
+Use a glibc image as above, and not curl, to check a "*.localhost" name: musl (Alpine,
+hence curlimages/curl) and curl itself both resolve *.localhost to loopback internally
+without ever querying DNS, so either would fail here regardless of the rewrite. The JVM
+runtimes that actually resolve these DIDs do not.
 {{ if .Values.global.debug.enabled }}
 NOTE: debug mode is ON — JVM apps expose a JDWP agent on port 1044 and dev credentials are in use.
 {{- end }}

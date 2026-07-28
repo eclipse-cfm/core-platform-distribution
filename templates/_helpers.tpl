@@ -109,9 +109,7 @@ platform: edcv
      The DSP and DCP endpoints are the only ones a *counterparty* talks to, so the
      URLs the platform advertises about itself (DSP callback address, credential
      service endpoint, issuance service endpoint, did:web identifiers) must be
-     resolvable from outside. These helpers build that address from
-     `global.external`; with `global.external.enabled: false` every consumer falls
-     back to the in-cluster Service FQDN it used before.
+     resolvable from outside. These helpers build that address from `global.external`.
 
      NOTE: did:web identifiers are resolved by the connector runtimes too, i.e. from
      INSIDE the cluster. `global.external.host` must therefore resolve to the
@@ -159,8 +157,26 @@ platform: edcv
 {{- .Values.edc.identityhub.did.host | default (printf "identity.%s" (include "cpd.externalHost" .)) -}}
 {{- end -}}
 
+{{/* Hostname the issuer's DID document is served on.
+
+     Normally derived from `did.host` (or `issuer.<externalHost>`), with the DID generated to
+     match. When `did.id` pins the DID outright that direction inverts — the DID then dictates the
+     hostname, per the did:web spec, so it is parsed back out here rather than configured
+     separately. Either way there is exactly one input, and the route and the DID cannot drift.
+
+     did:web:<authority>[:<segment>...], where a non-default port is percent-encoded into the
+     authority. HTTPRoute hostnames carry no port, so it is dropped after decoding. */}}
 {{- define "cpd.issuerserviceDidHost" -}}
-{{- .Values.edc.issuerservice.did.host | default (printf "issuer.%s" (include "cpd.externalHost" .)) -}}
+{{- $d := .Values.edc.issuerservice.did -}}
+{{- if and $d.id $d.host -}}
+{{- fail "edc.issuerservice.did: set either `id` (explicit DID; the route hostname is derived from it) or `host` (hostname; the DID is derived from it) — not both" -}}
+{{- end -}}
+{{- if $d.id -}}
+{{- $authority := $d.id | trimPrefix "did:web:" | splitList ":" | first | replace "%3A" ":" -}}
+{{- splitList ":" $authority | first -}}
+{{- else -}}
+{{- $d.host | default (printf "issuer.%s" (include "cpd.externalHost" .)) -}}
+{{- end -}}
 {{- end -}}
 
 {{/* did:web authority segment. EDC's DidWebParser URL-encodes URI.getAuthority(),
@@ -173,13 +189,14 @@ platform: edcv
      Trusted-issuer DID: did:web:<issuer did host>:issuer, served by IssuerService at
      GET <scheme>://<issuer did host>/issuer/did.json. The trailing segment is the
      issuer's participantContextId ("issuer", as created by the issuerservice-seed job).
+
+     `edc.issuerservice.did.id` overrides it — for a DID that is not ours to choose (assigned by
+     a dataspace registry, or one that must stay stable while the infrastructure under it moves,
+     since credentials already issued reference it). The route hostname then follows from the
+     DID; see cpd.issuerserviceDidHost.
      ------------------------------------------------------------------------- */}}
 {{- define "cpd.issuerDid" -}}
-{{- if .Values.global.external.enabled -}}
-{{- printf "did:web:%s:issuer" (include "cpd.didWebAuthorityFor" (dict "host" (include "cpd.issuerserviceDidHost" .) "ctx" .)) -}}
-{{- else -}}
-{{- printf "did:web:%s%%3A10016:issuer" (include "cpd.fqdn" (dict "svc" "issuerservice" "ctx" .)) -}}
-{{- end -}}
+{{- .Values.edc.issuerservice.did.id | default (printf "did:web:%s:issuer" (include "cpd.didWebAuthorityFor" (dict "host" (include "cpd.issuerserviceDidHost" .) "ctx" .))) -}}
 {{- end -}}
 
 {{/* -------------------------------------------------------------------------
@@ -191,40 +208,24 @@ platform: edcv
      profiles) — this value is surfaced in NOTES.txt so they can be built to match.
      ------------------------------------------------------------------------- */}}
 {{- define "cpd.identityhubDidBase" -}}
-{{- if .Values.global.external.enabled -}}
 {{- printf "did:web:%s" (include "cpd.didWebAuthorityFor" (dict "host" (include "cpd.identityhubDidHost" .) "ctx" .)) -}}
-{{- else -}}
-{{- printf "did:web:%s%%3A7083" (include "cpd.fqdn" (dict "svc" "identityhub" "ctx" .)) -}}
-{{- end -}}
 {{- end -}}
 
 {{/* -------------------------------------------------------------------------
-     Advertised base URLs for the three counterparty-facing HTTP APIs. Externally
-     these are served on the Gateway's port under the same path the app itself uses
-     (no URLRewrite), so the external URL is just <externalBase><path>.
+     Advertised base URLs for the three counterparty-facing HTTP APIs. These are
+     served on the Gateway's port under the same path the app itself uses (no
+     URLRewrite), so the external URL is just <externalBase><path>.
      ------------------------------------------------------------------------- */}}
 {{- define "cpd.dspBaseUrl" -}}
-{{- if .Values.global.external.enabled -}}
 {{- printf "%s%s" (include "cpd.externalBaseUrl" .) .Values.edc.controlplane.protocol.path -}}
-{{- else -}}
-{{- printf "http://%s:8082%s" (include "cpd.fqdn" (dict "svc" "controlplane" "ctx" .)) .Values.edc.controlplane.protocol.path -}}
-{{- end -}}
 {{- end -}}
 
 {{- define "cpd.credentialsBaseUrl" -}}
-{{- if .Values.global.external.enabled -}}
 {{- printf "%s%s" (include "cpd.externalBaseUrl" .) .Values.edc.identityhub.credentials.path -}}
-{{- else -}}
-{{- printf "http://%s:7082%s" (include "cpd.fqdn" (dict "svc" "identityhub" "ctx" .)) .Values.edc.identityhub.credentials.path -}}
-{{- end -}}
 {{- end -}}
 
 {{- define "cpd.issuanceBaseUrl" -}}
-{{- if .Values.global.external.enabled -}}
 {{- printf "%s%s" (include "cpd.externalBaseUrl" .) .Values.edc.issuerservice.issuance.path -}}
-{{- else -}}
-{{- printf "http://%s:10012%s" (include "cpd.fqdn" (dict "svc" "issuerservice" "ctx" .)) .Values.edc.issuerservice.issuance.path -}}
-{{- end -}}
 {{- end -}}
 
 {{/* -------------------------------------------------------------------------
