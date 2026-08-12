@@ -251,11 +251,15 @@ platform: edcv
 {{/* -------------------------------------------------------------------------
      NATS NKey credential delivery (see docs/nats-authentication.md).
      Init container that logs into Vault via the kubernetes auth method using the
-     pod's own SA token, reads the component's NKey seed and drops it on the
+     pod's own SA token, reads the identity's NKey seed and drops it on the
      pod-private in-memory volume. Retries until the vault-bootstrap job has
      created the auth role and the nats-auth-bootstrap job has stored the seed
      (all bootstrap jobs run concurrently with the workloads).
-     Usage: {{ include "cpd.natsNkeyInitContainer" (dict "component" "controlplane" "ctx" $) | nindent 8 }}
+
+     "component" names a NATS IDENTITY from .Values.nats.auth.users -- edc-events, cfm-agents or
+     nats-admin -- NOT the workload. Several workloads share one identity, and the pod's SA must
+     appear in that identity's serviceAccounts list or the Vault login fails with "invalid role".
+     Usage: {{ include "cpd.natsNkeyInitContainer" (dict "component" "edc-events" "ctx" $) | nindent 8 }}
      ------------------------------------------------------------------------- */}}
 {{- define "cpd.natsNkeyInitContainer" -}}
 {{- $role := printf "nats-%s" (trimPrefix "nats-" .component) -}}
