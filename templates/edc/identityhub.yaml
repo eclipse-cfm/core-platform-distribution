@@ -25,7 +25,7 @@ spec:
       serviceAccountName: identityhub
       {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
       initContainers:
-        {{- include "cpd.natsNkeyInitContainer" (dict "component" "identityhub" "ctx" $) | nindent 8 }}
+        {{- include "cpd.natsNkeyInitContainer" (dict "component" "edc-events" "ctx" $) | nindent 8 }}
       {{- end }}
       containers:
         - name: identityhub

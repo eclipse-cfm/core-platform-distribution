@@ -26,7 +26,7 @@ spec:
       serviceAccountName: issuerservice
       {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
       initContainers:
-        {{- include "cpd.natsNkeyInitContainer" (dict "component" "issuerservice" "ctx" $) | nindent 8 }}
+        {{- include "cpd.natsNkeyInitContainer" (dict "component" "edc-events" "ctx" $) | nindent 8 }}
       {{- end }}
       containers:
         - name: issuerservice

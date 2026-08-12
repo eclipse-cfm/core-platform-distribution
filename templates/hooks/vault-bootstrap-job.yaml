@@ -227,31 +227,33 @@ spec:
 {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
 
               echo "########################################"
-              echo "NATS NKey seed access (per-component)"
+              echo "NATS NKey seed access (per-identity)"
               echo "########################################"
 
-              # Read-only access to each component's NATS NKey seed, bound to its
-              # EXISTING service account (see docs/nats-authentication.md). The seeds
-              # themselves are written by the nats-auth-bootstrap job; the fetch-nats-nkey
-              # init containers log in with these roles to deliver the seed into the pod.
-              for entry in "controlplane:controlplane" "identityhub:identityhub" "issuerservice:issuerservice" "cfm-agents:cfm-agents" "nats-admin:seed-jobs"; do
-                comp=${entry%%:*}
-                sa=${entry##*:}
-                role="nats-${comp#nats-}"
-
-                cat <<EOF | vault policy write "$role" - || { echo "Failed to write $role policy"; exit 1; }
-              path "secret/data/nats/$comp" {
+              # Read-only access to each NATS identity's NKey seed, bound to EVERY service account
+              # allowed to use it (see docs/nats-authentication.md). One role may be bound to
+              # several SAs — that is what lets workloads, including ones from downstream charts,
+              # share an identity. The seeds themselves are written by the nats-auth-bootstrap job;
+              # the fetch-nats-nkey init containers log in with these roles to deliver the seed
+              # into the pod.
+              #
+              # `nats-<identity>` is the role name; the trimPrefix keeps nats-admin from becoming
+              # nats-nats-admin.
+              {{- range $name, $user := .Values.nats.auth.users }}
+              {{- $role := printf "nats-%s" (trimPrefix "nats-" $name) }}
+              cat <<EOF | vault policy write "{{ $role }}" - || { echo "Failed to write {{ $role }} policy"; exit 1; }
+              path "secret/data/nats/{{ $name }}" {
                 capabilities = ["read"]
               }
               EOF
 
-                vault write "auth/kubernetes/role/$role" \
-                  bound_service_account_names="$sa" \
-                  bound_service_account_namespaces={{ include "cpd.namespace" . }} \
-                  policies="$role" \
-                  ttl=1h || { echo "Failed to create $role k8s-auth role"; exit 1; }
-                echo "Vault policy/role '$role' bound to SA '$sa'"
-              done
+              vault write "auth/kubernetes/role/{{ $role }}" \
+                bound_service_account_names="{{ join "," $user.serviceAccounts }}" \
+                bound_service_account_namespaces={{ include "cpd.namespace" $ }} \
+                policies="{{ $role }}" \
+                ttl=1h || { echo "Failed to create {{ $role }} k8s-auth role"; exit 1; }
+              echo "Vault policy/role '{{ $role }}' bound to SAs '{{ join ", " $user.serviceAccounts }}'"
+              {{- end }}
 {{- end }}
 
               echo "Vault bootstrap completed successfully!"

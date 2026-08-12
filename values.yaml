@@ -150,8 +150,49 @@ nats:
     # Renders the authorization include in nats.conf (users.conf is generated into
     # the <release>-nats-auth Secret by the nats-auth-bootstrap job), the per-pod
     # fetch-nats-nkey init containers, and the Vault policies/k8s-auth roles that
-    # gate each component's seed to its service account.
+    # gate each identity's seed to the service accounts allowed to use it.
     enabled: true
+    # THREE identities, one per permission profile, each shared by every workload with that
+    # profile — rather than one NKey per component. Adding a workload is then a ServiceAccount
+    # entry here instead of a new user + a new Vault role + a template edit. It is also the only
+    # way a DOWNSTREAM chart can hold a NATS identity: it cannot add itself to this server's
+    # users.conf, but it can reuse one of these by naming the matching role and seed path.
+    #
+    # Per entry the bootstrap jobs create: a seed at secret/nats/<name> (generated once, stable
+    # across upgrades), a `nats-<name>` Vault policy + kubernetes-auth role bound to
+    # `serviceAccounts`, and the users.conf entry carrying `publish` / `subscribe`.
+    #
+    # `serviceAccounts` is a LIST and Helm REPLACES lists rather than merging them, so a
+    # downstream chart adding its own SA must restate the defaults alongside it.
+    #
+    # Trade-off of sharing: an identity grants the union of its members' needs — identityhub and
+    # issuerservice can now also publish on the task subjects only the control plane uses. That is
+    # acceptable between equally-trusted platform components on one broker; do NOT fold a
+    # less-trusted workload into an identity just to save a role.
+    users:
+      # EDC and EDC-adjacent components: domain events on events.>, plus the negotiation and
+      # transfer task subjects (cn-stream / tp-stream) used by the control plane's NATS task
+      # publisher/subscriber extensions. Subscribing to events.> covers consumers of edc-events.
+      edc-events:
+        serviceAccounts:
+          - controlplane
+          - identityhub
+          - issuerservice
+        publish: [ "events.>", "negotiations.>", "transfers.>", "$JS.API.>", "$JS.ACK.>" ]
+        subscribe: [ "events.>", "negotiations.>", "transfers.>", "_INBOX.>" ]
+      # CFM agents and managers. cfm-stream carries "event.*" (natsclient CFMSubjectPrefix);
+      # "events.>" on subscribe because kmagent consumes the edc-events stream.
+      cfm-agents:
+        serviceAccounts:
+          - cfm-agents
+        publish: [ "event.>", "$KV.cfm-bucket.>", "$JS.API.>", "$JS.ACK.>" ]
+        subscribe: [ "event.>", "events.>", "$KV.cfm-bucket.>", "_INBOX.>" ]
+      # Infrastructure only: the nats-bootstrap job that creates the streams.
+      nats-admin:
+        serviceAccounts:
+          - seed-jobs
+        publish: [ ">" ]
+        subscribe: [ ">" ]
   # Data volume for JetStream (store_dir). Without persistence the store is an emptyDir, so
   # `storage: file` streams are NOT durable: every pod replacement (e.g. the roll triggered by
   # a users.conf change) wipes all streams and durable consumers, and only the nats-bootstrap

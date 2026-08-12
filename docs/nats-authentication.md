@@ -34,13 +34,40 @@ are introduced.
 
 ## Identity model
 
-| NATS user       | Service account | Used by                                              |
-|-----------------|-----------------|------------------------------------------------------|
-| `controlplane`  | `controlplane`  | EDC control plane (events, cn/tp pub/sub)            |
-| `identityhub`   | `identityhub`   | Identity Hub (event publishing)                      |
-| `issuerservice` | `issuerservice` | Issuer Service (event publishing)                    |
-| `cfm-agents`    | `cfm-agents`    | CFM agents and managers (`cfm-stream`, `cfm-bucket`) |
-| `nats-admin`    | `seed-jobs`     | `nats-bootstrap` job (stream creation)               |
+There are **three identities, one per permission profile**, each shared by every workload with that
+profile — not one NKey per component. They are declared in `values.yaml` under `nats.auth.users`,
+and everything downstream (seeds, Vault policies, k8s-auth roles, `users.conf`) is generated from
+that map.
+
+| NATS identity  | Service accounts                                | Used by                                              |
+|----------------|-------------------------------------------------|------------------------------------------------------|
+| `edc-events`   | `controlplane`, `identityhub`, `issuerservice`  | EDC components: domain events, plus cn/tp task pub/sub |
+| `cfm-agents`   | `cfm-agents`                                    | CFM agents and managers (`cfm-stream`, `cfm-bucket`) |
+| `nats-admin`   | `seed-jobs`                                     | `nats-bootstrap` job (stream creation)               |
+
+Two consequences worth understanding before changing this:
+
+- **An identity grants the union of its members' needs.** `identityhub` and `issuerservice` do not
+  themselves use the `negotiations.>` / `transfers.>` task subjects, but share an identity with the
+  control plane that does. That is a deliberate trade between least privilege and a manageable
+  number of credentials, and it holds only because all three are equally-trusted platform
+  components on the same broker. Do not fold a less-trusted workload into an identity to save a
+  role — give it its own entry.
+- **This is the only way a downstream chart can hold a NATS identity.** A chart layered on top of
+  this one cannot add itself to this server's `users.conf`, but it can reuse one of these: add its
+  ServiceAccount to the identity's `serviceAccounts` list (from the parent chart's values) and point
+  its own `fetch-nats-nkey` init container at the matching `nats-<identity>` role and
+  `secret/nats/<identity>` seed path. Note `serviceAccounts` is a list, and Helm replaces lists
+  rather than merging them, so a downstream override must restate the defaults it wants to keep.
+
+### Adding a workload
+
+1. Add its ServiceAccount to the right identity under `nats.auth.users.<identity>.serviceAccounts`.
+2. Give its pod the `fetch-nats-nkey` init container for that identity
+   (`cpd.natsNkeyInitContainer` with `component: <identity>`), or the equivalent in a downstream
+   chart.
+
+No new user, no new Vault role, no new template.
 
 ## Key generation: the `nats-auth-bootstrap` job
 
@@ -120,17 +147,20 @@ The runtimes reference the seed file by path:
 
 ## Permissions
 
-Permissions are defined per user in `users.conf`. They are intentionally coarse to start with
-(JetStream consumers need the `$JS.API.>` request subjects and `_INBOX.>` for replies) and are
-expected to be tightened once subject usage is confirmed:
+Permissions come from `nats.auth.users.<identity>.publish` / `.subscribe` in `values.yaml` and are
+rendered verbatim into `users.conf`. They are intentionally coarse to start with (JetStream
+consumers need the `$JS.API.>` request subjects and `_INBOX.>` for replies) and are expected to be
+tightened once subject usage is confirmed:
 
-| User            | Publish                                                                | Subscribe                                             |
-|-----------------|------------------------------------------------------------------------|-------------------------------------------------------|
-| `controlplane`  | `events.>`, `negotiations.>`, `transfers.>`, `$JS.API.>`, `$JS.ACK.>`  | `events.>`, `negotiations.>`, `transfers.>`, `_INBOX.>` |
-| `identityhub`   | `events.>`, `$JS.API.>`                                 | `_INBOX.>`                                           |
-| `issuerservice` | `events.>`, `$JS.API.>`                                 | `_INBOX.>`                                           |
-| `cfm-agents`    | `event.>`, `$KV.cfm-bucket.>`, `$JS.API.>`, `$JS.ACK.>` | `event.>`, `events.>`, `$KV.cfm-bucket.>`, `_INBOX.>` |
-| `nats-admin`    | `>`                                                     | `>`                                                  |
+| Identity       | Publish                                                                | Subscribe                                             |
+|----------------|------------------------------------------------------------------------|-------------------------------------------------------|
+| `edc-events`   | `events.>`, `negotiations.>`, `transfers.>`, `$JS.API.>`, `$JS.ACK.>`  | `events.>`, `negotiations.>`, `transfers.>`, `_INBOX.>` |
+| `cfm-agents`   | `event.>`, `$KV.cfm-bucket.>`, `$JS.API.>`, `$JS.ACK.>` | `event.>`, `events.>`, `$KV.cfm-bucket.>`, `_INBOX.>` |
+| `nats-admin`   | `>`                                                     | `>`                                                  |
+
+When editing these, remember the generated `users.conf` is written from an **unquoted** heredoc, so
+the job escapes `$` on the way in. A subject that lost its escaping would expand to the empty string
+in the shell and silently grant nothing at all.
 
 Note the singular `event.>` for the CFM components: `cfm-stream` carries `event.*` subjects
 (the `CFMSubjectPrefix` in `common/natsclient/stream.go`). `events.>` (plural) is additionally
