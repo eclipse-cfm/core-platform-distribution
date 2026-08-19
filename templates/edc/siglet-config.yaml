@@ -35,8 +35,12 @@ data:
     token_source = "{{ .tokenSource }}"
     tx_renewal_support = {{ .txRenewalSupport }}
     {{- end }}
-    [signaling_auth]
+    [token_api_auth]
     mode = "disabled"
+    [signaling_auth]
+    mode = "enabled"
+    jwks_url = "http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080/.well-known/jwks.json"
+    audience = "{{ .Values.global.tokenExchangeAudience }}"
     [management_api_auth]
     mode = "enabled"
     jwks_url = "http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080/.well-known/jwks.json"

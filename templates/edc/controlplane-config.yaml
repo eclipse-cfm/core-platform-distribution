@@ -81,6 +81,10 @@ data:
   edc.iam.trusted-issuer.{{ .name }}.id: {{ .id | quote }}
 {{- end }}
 
+  edc.iam.trustedissuer.issuer.id: {{ include "cpd.issuerDid" . | quote }}
+{{- range .Values.edc.controlplane.trustedIssuers }}
+  edc.iam.trustedissuer.{{ .name }}.id: {{ .id | quote }}
+{{- end }}
   # NATS config for events
   edc.events.nats.url: {{ include "cpd.natsUrl" . | quote }}
   edc.events.nats.stream: "edc-events"

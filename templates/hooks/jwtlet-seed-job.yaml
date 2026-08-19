@@ -250,6 +250,12 @@ spec:
                     "claims": {
                       "scope": "management-api:admin identity-api:admin issuer-admin-api:admin"
                     }
+                  },
+                  {
+                    "scope": "signaling",
+                    "claims": {
+                      "scope": "dplane-signaling"
+                    }
                   }
                 ]'
               if [ "$RESP_STATUS" -eq 409 ]; then
