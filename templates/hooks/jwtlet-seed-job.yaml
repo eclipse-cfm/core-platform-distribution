@@ -107,7 +107,7 @@ spec:
                 -d '{
                     "clientIdentifier": "system:serviceaccount:{{ include "cpd.namespace" . }}:redline",
                     "participantContext": "redline",
-                    "scopes": ["read","write", "cfm-read","cfm-write", "admin", "provision-manager-api:read", "provision-manager-api:write", "tenant-manager-api:read", "tenant-manager-api:write"],
+                    "scopes": ["read","write", "cfm-read","cfm-write", "admin", "provision-manager-api:read", "provision-manager-api:write", "tenant-manager-api:read", "tenant-manager-api:write", "siglet-token", "siglet-token:admin"],
                     "audiences": ["{{ .Values.global.tokenExchangeAudience }}"]
                 }'
               if [ "$RESP_STATUS" -eq 409 ]; then
@@ -255,6 +255,18 @@ spec:
                     "scope": "signaling",
                     "claims": {
                       "scope": "dplane-signaling"
+                    }
+                  },
+                  {
+                    "scope": "siglet-token",
+                    "claims": {
+                      "scope": "siglet-token-api"
+                    }
+                  },
+                  {
+                    "scope": "siglet-token:admin",
+                    "claims": {
+                      "scope": "siglet-token-api:admin"
                     }
                   }
                 ]'

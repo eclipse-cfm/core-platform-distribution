@@ -171,6 +171,12 @@ data:
     tokenexchange.url: http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080
     tokenexchange.audience: {{ .Values.global.tokenExchangeAudience }}
     tokenexchange.tokenFilePath: /var/run/secrets/jwtlet/token
+{{- with .Values.cfm.agents.jwtlet.clientMappings }}
+    # Overrides the agent's built-in ServiceAccount->scope mappings; absent => the agent uses its
+    # defaults. Must stay on ONE line: the .env extension makes viper parse this file with the dotenv
+    # codec, which rejects nested YAML and would panic the container at startup.
+    clientmappings: {{ toJson . }}
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
