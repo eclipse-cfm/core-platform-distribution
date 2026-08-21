@@ -675,6 +675,18 @@ edc:
     enabled: true
     # Clearglass forward-auth (jwt-auth) on the HTTPRoute; see edc.controlplane.authEnabled.
     authEnabled: true
+    # Siglet's token API ([token_api_auth] in siglet.toml). When enabled, the token
+    # API validates participant tokens against jwtlet's JWKS using the same
+    # jwks_url/audience as [signaling_auth]. Disabled renders mode = "disabled".
+    tokenApiAuth:
+      enabled: true
+      # Grants admin access to the token API to callers presenting this scope.
+      # Emitted as admin_scope inside [token_api_auth]; only meaningful when
+      # tokenApiAuth.enabled is true. jwtlet seeds the matching
+      # `siglet-token:admin` -> `siglet-token-api:admin` mapping.
+      adminScope:
+        enabled: false
+        value: siglet-token-api:admin
     image:
       repo: eclipse-dataplane-core/dsdk-facet-rs/siglet
       tag: latest
@@ -715,6 +727,26 @@ cfm:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # jwtlet agent application config.
+    jwtlet:
+      # Workload ServiceAccounts that get a participant-scoped resource mapping in jwtlet, and the
+      # scopes each one is granted. Rendered into jwtlet-agent-config as a single-line JSON
+      # `clientmappings` key.
+      #
+      # Empty by default, which makes the agent use its built-in list:
+      #   controlplane -> [read, signaling]  (read = Vault partition, signaling = DPS with the data plane)
+      #   identityhub  -> [read]
+      #   siglet-sa    -> [read]
+      #
+      # A non-empty list REPLACES that built-in list entirely — it does not merge — so restate every
+      # workload you still need, not just the one you are changing. `name` is the bare ServiceAccount
+      # name; the agent prefixes it with `system:serviceaccount:<namespace>:`.
+      #   clientMappings:
+      #     - name: controlplane
+      #       scopes: [ read, signaling ]
+      #     - name: identityhub
+      #       scopes: [ read ]
+      clientMappings: []
   lifecycleAgents:
     # keymanagement agent
     enabled: true

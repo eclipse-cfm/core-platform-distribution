@@ -36,7 +36,16 @@ data:
     tx_renewal_support = {{ .txRenewalSupport }}
     {{- end }}
     [token_api_auth]
+    {{- if .Values.edc.siglet.tokenApiAuth.enabled }}
+    mode = "enabled"
+    jwks_url = "http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080/.well-known/jwks.json"
+    audience = "{{ .Values.global.tokenExchangeAudience }}"
+    {{- if .Values.edc.siglet.tokenApiAuth.adminScope.enabled }}
+    admin_scope = "{{ .Values.edc.siglet.tokenApiAuth.adminScope.value }}"
+    {{- end }}
+    {{- else }}
     mode = "disabled"
+    {{- end }}
     [signaling_auth]
     mode = "enabled"
     jwks_url = "http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080/.well-known/jwks.json"
