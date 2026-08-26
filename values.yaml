@@ -565,6 +565,12 @@ edc:
     #     - name: partner
     #       id: "did:web:partner.example.com:issuer"
     trustedIssuers: []
+    # Dataspace protocol profiles advertised by the control plane.
+    dataspaceProfiles:
+      # Renders edc.dataspace.enable.profiles.all. When true, every protocol
+      # profile the runtime knows about is enabled. Off by default — enable
+      # only when the deployment genuinely needs to advertise all of them.
+      enableAll: false
     # DSP protocol API (web.http.protocol, container port 8082).
     #
     # Deliberately exposed WITHOUT the clearglass forward-auth middleware: DSP
