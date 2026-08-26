@@ -74,7 +74,7 @@ data:
   edc.iam.dcp.scopes.manufacturer.type: "POLICY"
   edc.iam.dcp.scopes.manufacturer.value: "org.eclipse.dspace.dcp.vc.type:ManufacturerCredential:read"
   edc.iam.dcp.scopes.manufacturer.prefix-mapping: "ManufacturerCredential"
-  edc.dataspace.enable.profiles.all: "true"
+  edc.dataspace.enable.profiles.all: {{ .Values.edc.controlplane.dataspaceProfiles.enableAll | default false | quote }}
   # Trusted Issuers
   edc.iam.trusted-issuer.issuer.id: {{ include "cpd.issuerDid" . | quote }}
 {{- range .Values.edc.controlplane.trustedIssuers }}
