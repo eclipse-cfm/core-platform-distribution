@@ -552,7 +552,7 @@ edc:
     authEnabled: true
     image:
       repo: eclipse-cfm/platform-images/controlplane
-      tag: 0.0.1-rc.1
+      tag: 0.0.1-rc.2
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -695,7 +695,7 @@ edc:
         value: siglet-token-api:admin
     image:
       repo: eclipse-dataplane-core/dsdk-facet-rs/siglet
-      tag: 0.1.2
+      tag: 0.1.3
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
