@@ -112,7 +112,7 @@ spec:
               echo "✓ Admin-scoped token obtained"
 
               # Create issuer tenant
-              do_curl -X POST "http://{{ include "cpd.fqdn" (dict "svc" "issuerservice" "ctx" $) }}:10015/api/identity/v1beta/participants" \
+              do_curl -X POST "http://{{ include "cpd.fqdn" (dict "svc" "issuerservice" "ctx" $) }}:10015/api/identity/v1/participants" \
                 -H "Authorization: Bearer ${EXCHANGED_TOKEN}" \
                 -H "Content-Type: application/json" \
                 -d '{
@@ -120,7 +120,7 @@ spec:
                   "serviceEndpoints": [
                     {
                       "type": "IssuerService",
-                      "serviceEndpoint": "{{ include "cpd.issuanceBaseUrl" $ }}/v1beta/participants/issuer",
+                      "serviceEndpoint": "{{ include "cpd.issuanceBaseUrl" $ }}/v1/participants/issuer",
                       "id": "issuer-service-1"
                     }
                   ],

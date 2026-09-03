@@ -28,7 +28,7 @@ each one does its own in-app access control:
   Credential Service {{ include "cpd.credentialsBaseUrl" . }}/v1/participants/<participantContextId>
 {{- end }}{{ end }}
 {{- if .Values.edc.issuerservice.enabled }}{{ if .Values.edc.issuerservice.issuance.exposed }}
-  Issuance           {{ include "cpd.issuanceBaseUrl" . }}/v1beta/participants/issuer
+  Issuance           {{ include "cpd.issuanceBaseUrl" . }}/v1/participants/issuer
 {{- end }}{{ end }}
 {{- if .Values.edc.issuerservice.enabled }}{{ if .Values.edc.issuerservice.did.exposed }}
   Issuer DID         {{ include "cpd.issuerDid" . }}

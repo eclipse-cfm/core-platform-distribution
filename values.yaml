@@ -288,8 +288,8 @@ security:
     #
     # IMPORTANT: Traefik executes the forward-auth middleware AFTER the HTTPRoute
     # URLRewrite, so X-Forwarded-Uri carries the REWRITTEN backend path (verified
-    # from report-only logs): /api/mgmt/v5beta/..., /api/identity/v1beta/...,
-    # /api/admin/v1beta/..., /api/v1alpha1/... (tenant + provision manager share
+    # from report-only logs): /api/mgmt/v5/..., /api/identity/v1/...,
+    # /api/admin/v1/..., /api/v1alpha1/... (tenant + provision manager share
     # this prefix and are disambiguated by resource name), and siglet paths with
     # the /api/siglet prefix stripped entirely (e.g. /tokens/...).
     routeMap:
@@ -302,7 +302,7 @@ security:
       # dataspace-profile-specific rules, evaluated BEFORE `rules` (first match wins)
       extraRules: []
       rules:
-        # --- IdentityHub Identity API (backend /api/identity/v1beta/...) ---
+        # --- IdentityHub Identity API (backend /api/identity/v1/...) ---
         - path: /api/identity/*/participants/*/dids/**
           methods: [GET]
           anyOf: [identity-api:dids:read]
@@ -338,7 +338,7 @@ security:
         - path: /api/identity/**
           anyOf: [identity-api:write]
 
-        # --- Control plane Management API (backend /api/mgmt/v5beta/...) ---
+        # --- Control plane Management API (backend /api/mgmt/v5/...) ---
         # participant context lifecycle & config are admin operations
         - path: /api/mgmt/*/participants
           methods: [POST]
@@ -416,7 +416,7 @@ security:
         - path: /api/mgmt/**
           anyOf: [management-api:write]
 
-        # --- IssuerService Issuer Admin API (backend /api/admin/v1beta/...) ---
+        # --- IssuerService Issuer Admin API (backend /api/admin/v1/...) ---
         - path: /api/admin/*/participants/*/holders/**
           methods: [GET]
           anyOf: [issuer-admin-api:holders:read]
@@ -552,7 +552,7 @@ edc:
     authEnabled: true
     image:
       repo: eclipse-cfm/platform-images/controlplane
-      tag: 0.0.1-rc.2
+      tag: 0.0.1-rc.3
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -613,7 +613,7 @@ edc:
       host: ""
     image:
       repo: eclipse-cfm/platform-images/identity-hub
-      tag: 0.0.1-rc.1
+      tag: 0.0.1-rc.3
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -636,7 +636,7 @@ edc:
       # there is a published issuerservice image in eclipse-cfm/platform-images, but it does NOT contain all the specific
       # code we need for our credentials here. Therefore, we build our own image in JAD
       repo: eclipse-cfm/platform-images/issuerservice
-      tag: 0.0.1-rc.1
+      tag: 0.0.1-rc.3
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -718,17 +718,17 @@ cfm:
     enabled: true
     containers:
       jwtletAgent:
-        image: { repo: eclipse-cfm/cfm/jwtletagent, tag: 0.0.3 }
+        image: { repo: eclipse-cfm/cfm/jwtletagent, tag: 0.0.4 }
       edcvAgent:
-        image: { repo: eclipse-cfm/cfm/edcvagent, tag: 0.0.3 }
+        image: { repo: eclipse-cfm/cfm/edcvagent, tag: 0.0.4 }
       ihAgent:
-        image: { repo: eclipse-cfm/cfm/ihagent, tag: 0.0.3 }
+        image: { repo: eclipse-cfm/cfm/ihagent, tag: 0.0.4 }
       registrationAgent:
-        image: { repo: eclipse-cfm/cfm/regagent, tag: 0.0.3 }
+        image: { repo: eclipse-cfm/cfm/regagent, tag: 0.0.4 }
       onboardingAgent:
-        image: { repo: eclipse-cfm/cfm/obagent, tag: 0.0.3 }
+        image: { repo: eclipse-cfm/cfm/obagent, tag: 0.0.4 }
       sigletAgent:
-        image: { repo: eclipse-cfm/cfm/sigletagent, tag: 0.0.3 }
+        image: { repo: eclipse-cfm/cfm/sigletagent, tag: 0.0.4 }
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -758,7 +758,7 @@ cfm:
     enabled: true
     image:
       repo: eclipse-cfm/cfm/keymanagementagent
-      tag: 0.0.3
+      tag: 0.0.4
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -770,7 +770,7 @@ cfm:
     configMapName: pm-config
     image:
       repo: eclipse-cfm/cfm/pmanager
-      tag: 0.0.3
+      tag: 0.0.4
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -782,7 +782,7 @@ cfm:
     configMapName: tm-config
     image:
       repo: eclipse-cfm/cfm/tmanager
-      tag: 0.0.3
+      tag: 0.0.4
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
