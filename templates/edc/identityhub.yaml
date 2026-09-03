@@ -140,7 +140,7 @@ spec:
           urlRewrite:
             path:
               type: ReplacePrefixMatch
-              replacePrefixMatch: /api/identity/v1beta
+              replacePrefixMatch: /api/identity/v1
 {{- if and .Values.global.authEnabled .Values.security.clearglass.enabled .Values.edc.identityhub.authEnabled }}
         - type: ExtensionRef
           extensionRef:

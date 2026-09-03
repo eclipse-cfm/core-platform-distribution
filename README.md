@@ -97,7 +97,7 @@ caller's self-issued token, and DID documents are public. They are therefore rou
 |-------------------------------------------------------------------------------|------------------------|----------------------|
 | `<host>/api/dsp/<participantContextId>/http-dsp-profile-2025-1`                | `controlplane:8082`    | `protocol`           |
 | `<host>/api/credentials/v1/participants/<participantContextId>`               | `identityhub:7082`     | `credentials`        |
-| `<host>/api/issuance/v1beta/participants/issuer`                              | `issuerservice:10012`  | `issuance`           |
+| `<host>/api/issuance/v1/participants/issuer`                              | `issuerservice:10012`  | `issuance`           |
 | `identity.<host>/<participantContextId>/did.json`                             | `identityhub:7083`     | `did`                |
 | `issuer.<host>/issuer/did.json`                                               | `issuerservice:10016`  | `did`                |
 

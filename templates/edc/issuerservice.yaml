@@ -161,7 +161,7 @@ spec:
           urlRewrite:
             path:
               type: ReplacePrefixMatch
-              replacePrefixMatch: /api/admin/v1beta
+              replacePrefixMatch: /api/admin/v1
 {{- if and .Values.global.authEnabled .Values.security.clearglass.enabled .Values.edc.issuerservice.authEnabled }}
         - type: ExtensionRef
           extensionRef:
