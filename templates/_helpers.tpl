@@ -19,6 +19,21 @@ SPDX-License-Identifier: Apache-2.0
 {{- printf "%s-%s" .ctx.Release.Name .name -}}
 {{- end -}}
 
+{{/* Workload (pod-creating resource) name: "<name>" as-is, or "<release>-<name>" with
+     `prefixWorkloadNames` on — opting the app Deployments and the bootstrap/seed Jobs
+     into the same <release>-<component> convention cpd.fullname applies to the infra,
+     so every pod of a release shares one prefix. Deployments and Jobs ONLY: Services,
+     ServiceAccounts, ConfigMaps and Secrets keep their fixed names either way, so
+     in-cluster DNS and the workload identities (system:serviceaccount:<ns>:<name>)
+     are unaffected by the toggle. Call as: (dict "name" "controlplane" "ctx" $). */}}
+{{- define "cpd.workloadName" -}}
+{{- if .ctx.Values.prefixWorkloadNames -}}
+{{- printf "%s-%s" .ctx.Release.Name .name -}}
+{{- else -}}
+{{- .name -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "cpd.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}

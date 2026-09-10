@@ -4,7 +4,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cfm-agents
+  name: {{ include "cpd.workloadName" (dict "name" "cfm-agents" "ctx" $) }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     app: cfm-agents

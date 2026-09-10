@@ -6,7 +6,7 @@ metadata:
   # Plain Job (NOT a Helm hook): runs concurrently with the workloads that publish
   # to / consume from the stream it creates. The revision suffix lets `helm upgrade`
   # re-run it (Job specs are immutable).
-  name: nats-bootstrap-r{{ .Release.Revision }}
+  name: {{ include "cpd.workloadName" (dict "name" "nats-bootstrap" "ctx" $) }}-r{{ .Release.Revision }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}

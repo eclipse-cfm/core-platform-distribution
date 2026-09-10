@@ -17,7 +17,7 @@ metadata:
   # This deliberately lives outside jwtlet-seed, which stays a post-install hook: the
   # entries it creates are consumed by the app seed hooks (weight 20) rather than by a
   # workload's startup path, so it does not need to run concurrently.
-  name: siglet-seed-r{{ .Release.Revision }}
+  name: {{ include "cpd.workloadName" (dict "name" "siglet-seed" "ctx" $) }}-r{{ .Release.Revision }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     app: siglet-seed

@@ -66,6 +66,7 @@ useful knobs:
 | Key                                                            | Purpose                                                                             |
 |----------------------------------------------------------------|-------------------------------------------------------------------------------------|
 | `imageRegistry`                                                | Default registry prefixed to first-party images without a host (default `ghcr.io`). |
+| `prefixWorkloadNames`                                          | Prefix the app Deployments and bootstrap/seed Jobs with the release name (`<release>-controlplane`, ...), like the in-chart infra. Names of Services, ServiceAccounts, ConfigMaps and Secrets — i.e. DNS and identities — never change. Default `false`. |
 | `global.namespace`                                             | Target namespace / DNS segment (default `edc-v`).                                   |
 | `global.host`, `global.gatewayName`, `global.gatewayClassName` | Gateway/HTTPRoute exposure.                                                         |
 | `global.external.*`                                            | Externally reachable Gateway address; see [External exposure](#external-exposure-dsp--dcp). |

@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cfm-provision-manager
+  name: {{ include "cpd.workloadName" (dict "name" "cfm-provision-manager" "ctx" $) }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     app: provision-manager

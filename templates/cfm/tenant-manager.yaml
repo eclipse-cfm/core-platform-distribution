@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cfm-tenant-manager
+  name: {{ include "cpd.workloadName" (dict "name" "cfm-tenant-manager" "ctx" $) }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     app: tenant-manager

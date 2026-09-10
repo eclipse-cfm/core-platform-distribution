@@ -15,7 +15,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: tenant-manager-seed
+  name: {{ include "cpd.workloadName" (dict "name" "tenant-manager-seed" "ctx" $) }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     app: tenant-manager-seed

@@ -4,7 +4,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: issuerservice
+  name: {{ include "cpd.workloadName" (dict "name" "issuerservice" "ctx" $) }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     app: issuerservice

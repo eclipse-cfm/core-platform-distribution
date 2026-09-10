@@ -8,7 +8,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: jwtlet-seed
+  name: {{ include "cpd.workloadName" (dict "name" "jwtlet-seed" "ctx" $) }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     app: jwtlet-seed
