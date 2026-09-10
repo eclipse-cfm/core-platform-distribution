@@ -16,6 +16,17 @@
 # images (postgres, vault, nats) are pinned to their full upstream refs below.
 imageRegistry: ghcr.io
 
+# Prefix every pod-creating resource — the app Deployments (controlplane, identityhub,
+# issuerservice, siglet, jwtlet, clearglass, cfm-*) and the bootstrap/seed Jobs — with
+# the release name, the convention the in-chart infra already follows (<release>-nats,
+# <release>-vault, ...), so all of a release's pods share one prefix in `kubectl get pods`.
+# Deployments and Jobs ONLY: Service, ServiceAccount, ConfigMap and Secret names are
+# fixed either way, so in-cluster DNS (jwtlet.<ns>..., controlplane.<ns>...) and the
+# workload identities (system:serviceaccount:<ns>:<name>) do not change — flipping this
+# breaks no consumer of those contracts, it only replaces the workload objects under
+# new names on the next upgrade.
+prefixWorkloadNames: false
+
 # =============================================================================
 # Global settings shared across every component.
 # =============================================================================

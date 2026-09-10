@@ -15,7 +15,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: provision-manager-seed
+  name: {{ include "cpd.workloadName" (dict "name" "provision-manager-seed" "ctx" $) }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     app: provision-manager-seed

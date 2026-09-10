@@ -5,7 +5,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: siglet
+  name: {{ include "cpd.workloadName" (dict "name" "siglet" "ctx" $) }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     app: siglet

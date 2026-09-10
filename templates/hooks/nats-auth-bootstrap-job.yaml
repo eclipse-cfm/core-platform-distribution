@@ -51,7 +51,7 @@ metadata:
   # concurrently with `helm install --wait` because the NATS server pod blocks on
   # the Secret this job creates. The revision suffix lets `helm upgrade` re-run it
   # (Job specs are immutable). See docs/nats-authentication.md.
-  name: nats-auth-bootstrap-r{{ .Release.Revision }}
+  name: {{ include "cpd.workloadName" (dict "name" "nats-auth-bootstrap" "ctx" $) }}-r{{ .Release.Revision }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}

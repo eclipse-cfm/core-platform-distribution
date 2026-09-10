@@ -4,7 +4,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: jwtlet
+  name: {{ include "cpd.workloadName" (dict "name" "jwtlet" "ctx" $) }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}

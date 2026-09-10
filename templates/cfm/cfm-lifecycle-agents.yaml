@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cfm-lifecycle-agents
+  name: {{ include "cpd.workloadName" (dict "name" "cfm-lifecycle-agents" "ctx" $) }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     app: cfm-lifecycle-agents

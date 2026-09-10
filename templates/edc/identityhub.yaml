@@ -4,7 +4,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: identityhub
+  name: {{ include "cpd.workloadName" (dict "name" "identityhub" "ctx" $) }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     app: identityhub

@@ -19,7 +19,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: issuerservice-seed
+  name: {{ include "cpd.workloadName" (dict "name" "issuerservice-seed" "ctx" $) }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     app: issuerservice-seed

@@ -8,7 +8,7 @@ metadata:
   # workloads whose vault-agent sidecars depend on the k8s-auth roles it creates.
   # As a post-install hook it would deadlock `helm install --wait`. The revision
   # suffix lets `helm upgrade` re-run it (Job specs are immutable).
-  name: vault-bootstrap-r{{ .Release.Revision }}
+  name: {{ include "cpd.workloadName" (dict "name" "vault-bootstrap" "ctx" $) }}-r{{ .Release.Revision }}
   namespace: {{ include "cpd.namespace" . }}
   labels:
     {{- include "cpd.labels" . | nindent 4 }}
