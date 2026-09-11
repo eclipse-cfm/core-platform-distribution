@@ -65,15 +65,6 @@ data:
   edc.iam.oauth2.issuer: {{ $jwtlet | quote }}
   edc.iam.oauth2.jwks.url: {{ printf "%s/.well-known/jwks.json" $jwtlet | quote }}
 
-  # Default scopes config
-  edc.iam.dcp.scopes.membership.id: "membership-scope"
-  edc.iam.dcp.scopes.membership.type: "DEFAULT"
-  edc.iam.dcp.scopes.membership.value: "org.eclipse.dspace.dcp.vc.type:MembershipCredential:read"
-
-  edc.iam.dcp.scopes.manufacturer.id: "manufacturer-scope"
-  edc.iam.dcp.scopes.manufacturer.type: "POLICY"
-  edc.iam.dcp.scopes.manufacturer.value: "org.eclipse.dspace.dcp.vc.type:ManufacturerCredential:read"
-  edc.iam.dcp.scopes.manufacturer.prefix-mapping: "ManufacturerCredential"
   edc.dataspace.enable.profiles.all: {{ .Values.edc.controlplane.dataspaceProfiles.enableAll | default false | quote }}
   # Trusted Issuers
   edc.iam.trusted-issuer.issuer.id: {{ include "cpd.issuerDid" . | quote }}
