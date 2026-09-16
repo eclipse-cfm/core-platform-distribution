@@ -582,6 +582,24 @@ edc:
       # profile the runtime knows about is enabled. Off by default — enable
       # only when the deployment genuinely needs to advertise all of them.
       enableAll: false
+      # Name of the profile a participant's DSP endpoint is advertised under in
+      # its DID document (the `ProtocolEndpoint` service entry the ih-agent
+      # writes at provisioning time).
+      #
+      # The control plane serves each profile at
+      # /api/dsp/<participantContextId>/<profile name>, so this MUST name a
+      # profile the deployment actually has — the built-in default below, or,
+      # for a deployment that registers its own DataspaceProfile through the
+      # Management API, that profile's `name`. Get it wrong and every
+      # participant publishes a DSP endpoint that 404s: counterparties resolving
+      # the DID document — the only way an external one can find the endpoint —
+      # cannot reach the participant at all.
+      #
+      # NOT the same as `edc.dsp.callback.address`, which carries no profile
+      # segment here: the control plane appends the segment of the profile
+      # context handling the request, so callbacks follow the profile actually
+      # in use without configuration.
+      advertisedProfile: http-dsp-profile-2025-1
     # DSP protocol API (web.http.protocol, container port 8082).
     #
     # Deliberately exposed WITHOUT the clearglass forward-auth middleware: DSP

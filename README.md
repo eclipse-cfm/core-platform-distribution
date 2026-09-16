@@ -96,7 +96,7 @@ caller's self-issued token, and DID documents are public. They are therefore rou
 
 | External URL                                                                  | Backend                | `web.http.*` context |
 |-------------------------------------------------------------------------------|------------------------|----------------------|
-| `<host>/api/dsp/<participantContextId>/http-dsp-profile-2025-1`                | `controlplane:8082`    | `protocol`           |
+| `<host>/api/dsp/<participantContextId>/<dataspace profile>`                    | `controlplane:8082`    | `protocol`           |
 | `<host>/api/credentials/v1/participants/<participantContextId>`               | `identityhub:7082`     | `credentials`        |
 | `<host>/api/issuance/v1/participants/issuer`                              | `issuerservice:10012`  | `issuance`           |
 | `identity.<host>/<participantContextId>/did.json`                             | `identityhub:7083`     | `did`                |
@@ -104,16 +104,31 @@ caller's self-issued token, and DID documents are public. They are therefore rou
 
 Each is toggleable (`edc.<component>.<endpoint>.exposed`). The three path-based ones are
 configurable via `.path`, which must stay in sync with the matching `web.http.<context>.path`
-because there is no `URLRewrite` in between. The two DID endpoints get their **own hostname**
-(`edc.<component>.did.host`, defaulting to `identity.`/`issuer.` + the external host) and their
-own HTTPRoute matching `/` — see below.
+because there is no `URLRewrite` in between.
+
+The DSP endpoint's trailing segment is the **name of a dataspace profile**: the control plane
+serves one protocol context per registered profile. A participant's DID document advertises it
+under `edc.controlplane.dataspaceProfiles.advertisedProfile` (default
+`http-dsp-profile-2025-1`, the built-in profile); a deployment that registers its own profile
+through the Management API must set that value to the profile's `name`, or its participants
+publish a `ProtocolEndpoint` that 404s.
+
+The two DID endpoints get their **own hostname** (`edc.<component>.did.host`, defaulting to
+`identity.`/`issuer.` + the external host) and their own HTTPRoute matching `/` — see below.
 
 ### Advertised URLs
 
 Routing traffic *in* is only half the job: the URLs the platform publishes about itself must
 also be externally resolvable. `global.external` drives all of them — the DSP callback address
-(`edc.dsp.callback.address`), the `CredentialService` and `IssuerService` endpoints written
-into DID documents, and the `did:web` identifiers themselves.
+(`edc.dsp.callback.address`), the `ProtocolEndpoint`, `CredentialService` and `IssuerService`
+endpoints written into DID documents, and the `did:web` identifiers themselves.
+
+Note the two DSP addresses are produced differently. `edc.dsp.callback.address` carries no
+profile segment: the control plane appends the one of the profile context handling the request,
+so callbacks always match the profile actually in use. The `ProtocolEndpoint` in a participant's
+DID document is instead written once at provisioning time, from a static template
+(`controlplane.protocol.url` in the cfm-agents config) — which is why the profile it names is
+configuration rather than something derived.
 
 The issuer DID is derived from its route hostname, so the DID and the HTTPRoute serving it
 cannot disagree — `IssuerService` reconstructs the DID from the incoming request and looks it up
