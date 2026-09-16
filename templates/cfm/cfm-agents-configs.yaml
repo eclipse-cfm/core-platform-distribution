@@ -42,9 +42,12 @@ data:
     # participant's DID document, so it must be the external address.
     identityhub.cs.url: {{ include "cpd.credentialsBaseUrl" . }}/v1/participants/%s
     controlplane.url: http://{{ include "cpd.fqdn" (dict "svc" "controlplane" "ctx" $) }}:8081/api/mgmt
-    # Counterparty-facing: the participant's DSP endpoint. Must match
-    # edc.dsp.callback.address in controlplane-config.
-    controlplane.protocol.url: {{ include "cpd.dspBaseUrl" . }}/%s/http-dsp-profile-2025-1
+    # Counterparty-facing: the participant's DSP endpoint, written into its DID
+    # document as the `ProtocolEndpoint` service entry. The trailing segment is the
+    # dataspace profile's NAME — the control plane serves each profile at
+    # /api/dsp/<participantContextId>/<profile name> — so a deployment registering
+    # its own profile must set `advertisedProfile` to that profile's name.
+    controlplane.protocol.url: {{ include "cpd.dspBaseUrl" . }}/%s/{{ .Values.edc.controlplane.dataspaceProfiles.advertisedProfile }}
 
     tokenexchange.url: http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080
     tokenexchange.audience: {{ .Values.global.tokenExchangeAudience }}
@@ -77,9 +80,12 @@ data:
     # Counterparty-facing: published as the CredentialService endpoint in the
     # participant's DID document, so it must be the external address.
     identityhub.cs.url: {{ include "cpd.credentialsBaseUrl" . }}/v1/participants/%s
-    # Counterparty-facing: the participant's DSP endpoint. Must match
-    # edc.dsp.callback.address in controlplane-config.
-    controlplane.protocol.url: {{ include "cpd.dspBaseUrl" . }}/%s/http-dsp-profile-2025-1
+    # Counterparty-facing: the participant's DSP endpoint, written into its DID
+    # document as the `ProtocolEndpoint` service entry. The trailing segment is the
+    # dataspace profile's NAME — the control plane serves each profile at
+    # /api/dsp/<participantContextId>/<profile name> — so a deployment registering
+    # its own profile must set `advertisedProfile` to that profile's name.
+    controlplane.protocol.url: {{ include "cpd.dspBaseUrl" . }}/%s/{{ .Values.edc.controlplane.dataspaceProfiles.advertisedProfile }}
     controlplane.dataservice.url: {{ include "cpd.dspBaseUrl" . }}/%s/.well-known/dspace-version
 
     tokenexchange.url: http://{{ include "cpd.fqdn" (dict "svc" "jwtlet" "ctx" $) }}:8080
