@@ -185,6 +185,18 @@ spec:
           port: 10012
           weight: 1
 {{- end }}
+{{- if $c.statuslist.exposed }}
+    # Status list credentials (web.http.statuslist) → port 9999, unrewritten: the URL a
+    # credential names is exactly what the app is asked for. Public; no jwt-auth ExtensionRef.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ $c.statuslist.path | quote }}
+      backendRefs:
+        - name: issuerservice
+          port: 9999
+          weight: 1
+{{- end }}
 {{- if $c.did.exposed }}
 ---
 # did:web document (web.http.did) → port 10016, on a dedicated hostname. Matches "/"

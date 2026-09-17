@@ -99,12 +99,18 @@ caller's self-issued token, and DID documents are public. They are therefore rou
 | `<host>/api/dsp/<participantContextId>/<dataspace profile>`                    | `controlplane:8082`    | `protocol`           |
 | `<host>/api/credentials/v1/participants/<participantContextId>`               | `identityhub:7082`     | `credentials`        |
 | `<host>/api/issuance/v1/participants/issuer`                              | `issuerservice:10012`  | `issuance`           |
+| `<host>/statuslist/<statusListCredentialId>`                                  | `issuerservice:9999`   | `statuslist`         |
 | `identity.<host>/<participantContextId>/did.json`                             | `identityhub:7083`     | `did`                |
 | `issuer.<host>/issuer/did.json`                                               | `issuerservice:10016`  | `did`                |
 
-Each is toggleable (`edc.<component>.<endpoint>.exposed`). The three path-based ones are
+Each is toggleable (`edc.<component>.<endpoint>.exposed`). The four path-based ones are
 configurable via `.path`, which must stay in sync with the matching `web.http.<context>.path`
 because there is no `URLRewrite` in between.
+
+The status list is counterparty-facing even though no counterparty calls it as an API: every
+credential the issuer signs names its status list by URL, and whoever verifies the credential —
+the holder's IdentityHub before presenting it, the counterparty's control plane after receiving
+it — downloads the list from there to check revocation.
 
 The DSP endpoint's trailing segment is the **name of a dataspace profile**: the control plane
 serves one protocol context per registered profile. A participant's DID document advertises it
@@ -120,8 +126,9 @@ The two DID endpoints get their **own hostname** (`edc.<component>.did.host`, de
 
 Routing traffic *in* is only half the job: the URLs the platform publishes about itself must
 also be externally resolvable. `global.external` drives all of them — the DSP callback address
-(`edc.dsp.callback.address`), the `ProtocolEndpoint`, `CredentialService` and `IssuerService`
-endpoints written into DID documents, and the `did:web` identifiers themselves.
+(`edc.dsp.callback.address`), the status list URL written into every issued credential
+(`edc.statuslist.callback.address`), the `ProtocolEndpoint`, `CredentialService` and
+`IssuerService` endpoints written into DID documents, and the `did:web` identifiers themselves.
 
 Note the two DSP addresses are produced differently. `edc.dsp.callback.address` carries no
 profile segment: the control plane appends the one of the profile context handling the request,
