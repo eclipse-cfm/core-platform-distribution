@@ -33,7 +33,13 @@ data:
   # `edc.issuerservice.did.path` forwards it unrewritten.
   web.http.did.path: "/"
   web.http.statuslist.port: "9999"
-  web.http.statuslist.path: "/statuslist"
+  web.http.statuslist.path: {{ $c.statuslist.path | quote }}
+{{- if $c.statuslist.exposed }}
+  # Base of the status list URL written into every issued credential. Unset, IssuerService falls
+  # back to http://<edc.hostname>:<port><path> — the in-cluster address, which a verifier in any
+  # other cluster cannot reach (see edc.issuerservice.statuslist).
+  edc.statuslist.callback.address: {{ printf "%s%s" (include "cpd.externalBaseUrl" .) $c.statuslist.path | quote }}
+{{- end }}
 
   # persistence and vault
   edc.vault.hashicorp.url: {{ include "cpd.vaultUrl" . | quote }}

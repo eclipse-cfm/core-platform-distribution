@@ -678,6 +678,19 @@ edc:
       # ConfigMap. Also the base of the IssuerService serviceEndpoint published in
       # the issuer's DID document by the issuerservice-seed job.
       path: /api/issuance
+    # Status list credentials (web.http.statuslist, container port 9999). Every issued credential
+    # names its status list by URL (credentialStatus.statusListCredential), and every verifier —
+    # the holder's IdentityHub when presenting, a counterparty's control plane when verifying —
+    # downloads it from there. The URL is written into the credential at issuance, so it must be
+    # the external address: an in-cluster one only resolves inside this cluster, and in another
+    # cluster the same Service name points at THAT cluster's issuer, which answers 404 — the
+    # credential then counts as unverifiable and the whole presentation is rejected.
+    # Exposed without jwt-auth: status lists are public by design.
+    statuslist:
+      exposed: true
+      # Unrewritten; also the web.http.statuslist.path context. Credentials issued before this
+      # was exposed name the in-cluster URL with the same path, so they keep resolving in-cluster.
+      path: /statuslist
     # did:web document endpoint (web.http.did, container port 10016). Dedicated
     # hostname, matching "/" unrewritten, for the same reason as
     # edc.identityhub.did. The issuer DID is derived from it, with the issuer's
