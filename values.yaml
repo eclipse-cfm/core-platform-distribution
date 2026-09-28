@@ -750,6 +750,10 @@ edc:
         endpoint: "http://provider:8080/data"
         tokenSource: "provider"
         txRenewalSupport: false
+        claimMappings:
+          - from: "flow.metadata.example"
+            to: "example"
+            optional: true
 
 # =============================================================================
 # CFM application components.

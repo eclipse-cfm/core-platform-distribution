@@ -34,6 +34,14 @@ data:
     endpoint = "{{ .endpoint }}"
     token_source = "{{ .tokenSource }}"
     tx_renewal_support = {{ .txRenewalSupport }}
+    {{- if .claimMappings }}
+    {{- range .claimMappings }}
+    [[transfer_types.claim_mappings]]
+    from = "{{ .from }}"
+    to = "{{ .to }}"
+    optional = {{ .optional }}
+    {{- end }}
+    {{- end}}
     {{- end }}
     [token_api_auth]
     {{- if .Values.edc.siglet.tokenApiAuth.enabled }}
