@@ -165,6 +165,23 @@ spec:
 {{- end }}
 {{- if $c.did.exposed }}
 ---
+# Allow CORS requests for DID documents
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: identityhub-did-cors
+  namespace: {{ include "cpd.namespace" . }}
+spec:
+  headers:
+    accessControlAllowOriginList:
+      - "*"
+    accessControlAllowHeaders:
+      - "*"
+    accessControlAllowMethods:
+      - "GET"
+      - "OPTIONS"
+    accessControlMaxAge: 86400
+---
 # did:web documents (web.http.did) → port 7083, on a dedicated hostname.
 #
 # Matches "/" and forwards unrewritten: IdentityHub's DidWebController reconstructs
@@ -194,5 +211,11 @@ spec:
       backendRefs:
         - name: identityhub
           port: 7083
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: identityhub-did-cors
 {{- end }}
 {{- end }}
