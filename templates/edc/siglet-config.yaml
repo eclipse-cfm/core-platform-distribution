@@ -37,9 +37,11 @@ data:
     {{- if .claimMappings }}
     {{- range .claimMappings }}
     [[transfer_types.claim_mappings]]
-    from = "{{ .from }}"
-    to = "{{ .to }}"
+    from = "{{ required "'from' is required for claim mappings" .from }}"
+    to = "{{ required "'to' is required for claim mappings" .to }}"
+    {{- if .optional }}
     optional = {{ .optional }}
+    {{- end}}
     {{- end }}
     {{- end}}
     {{- end }}
