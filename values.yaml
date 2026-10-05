@@ -754,6 +754,12 @@ edc:
         endpoint: "http://provider:8080/data"
         tokenSource: "provider"
         txRenewalSupport: false
+        # Claim mappings for the transfer type, written into siglet.toml as [[transfer_types.claim_mappings]] blocks.
+        # Example:
+        # - from: "flow.metadata.example"
+        #   to: "example"
+        #   optional: true
+        claimMappings: []
 
 # =============================================================================
 # CFM application components.
