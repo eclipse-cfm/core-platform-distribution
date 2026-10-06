@@ -543,7 +543,7 @@ security:
     enabled: true
     image:
       repo: eclipse-cfm/jwtlet
-      tag: 0.0.1
+      tag: 0.0.2
     vaultAgentImage: hashicorp/vault:latest
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
