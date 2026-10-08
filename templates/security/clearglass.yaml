@@ -44,18 +44,14 @@ spec:
             - name: routes
               mountPath: /etc/clearglass
               readOnly: true
+          {{- with $c.probes.liveness }}
           livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 8080
-            initialDelaySeconds: 3
-            periodSeconds: 3
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $c.probes.readiness }}
           readinessProbe:
-            httpGet:
-              path: /healthz
-              port: 8080
-            initialDelaySeconds: 3
-            periodSeconds: 3
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with $c.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

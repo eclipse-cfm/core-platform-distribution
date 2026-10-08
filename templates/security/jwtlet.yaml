@@ -112,20 +112,14 @@ spec:
         - name: vault-secrets
           mountPath: /vault/secrets
           readOnly: true
+        {{- with $c.probes.liveness }}
         livenessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          failureThreshold: 3
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with $c.probes.readiness }}
         readinessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          failureThreshold: 3
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         resources:
           requests:
             memory: "128Mi"

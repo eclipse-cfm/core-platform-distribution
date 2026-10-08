@@ -122,22 +122,14 @@ spec:
               mountPath: /config
               readOnly: true
             {{- include "cpd.jwtletSubjectTokenMount" . | nindent 12 }}
+          {{- with $c.probes.liveness }}
           livenessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $c.probes.readiness }}
           readinessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
-            timeoutSeconds: 3
-            failureThreshold: 3
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             requests:
               memory: "128Mi"

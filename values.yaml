@@ -113,6 +113,14 @@ postgresql:
   auth:
     postgresPassword: postgres
     database: postgres
+  # Kubernetes readiness probe, rendered verbatim as the container's readinessProbe.
+  # Set to null ({}) to disable it.
+  probes:
+    readiness:
+      exec:
+        command: [ "sh", "-c", "pg_isready -U postgres -d postgres" ]
+      initialDelaySeconds: 5
+      periodSeconds: 10
   # Data volume for the in-chart server. Dev default is an ephemeral emptyDir; enable
   # persistence (a PVC) for anything that must survive a pod restart.
   persistence:
@@ -142,6 +150,16 @@ vault:
     port: 8200
     scheme: http
     rootToken: root # dev only; seeds the in-chart server's dev root token id
+  # Kubernetes readiness probe, rendered verbatim as the container's readinessProbe.
+  # Set to null ({}) to disable it.
+  probes:
+    readiness:
+      httpGet:
+        path: /v1/sys/health
+        port: 8200
+        scheme: HTTP
+      initialDelaySeconds: 5
+      periodSeconds: 10
 
 nats:
   enabled: true
@@ -291,6 +309,21 @@ security:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Kubernetes probes, rendered verbatim as the container's livenessProbe /
+    # readinessProbe. Set one to null ({}) to disable it.
+    probes:
+      liveness:
+        httpGet:
+          path: /healthz
+          port: 8080
+        initialDelaySeconds: 3
+        periodSeconds: 3
+      readiness:
+        httpGet:
+          path: /healthz
+          port: 8080
+        initialDelaySeconds: 3
+        periodSeconds: 3
     # Static route→scope map evaluated by clearglass against X-Forwarded-Method /
     # X-Forwarded-Uri on every /validate call. Rules are first-match-wins, so keep
     # them most-specific-first; `anyOf` names the NARROWEST sufficient scope — wider
@@ -549,6 +582,23 @@ security:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Kubernetes probes, rendered verbatim as the container's livenessProbe /
+    # readinessProbe. Set one to null ({}) to disable it.
+    probes:
+      liveness:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        failureThreshold: 3
+      readiness:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        failureThreshold: 3
 
 # =============================================================================
 # EDC application components.
@@ -568,6 +618,30 @@ edc:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Kubernetes probes, rendered verbatim as the container's livenessProbe /
+    # readinessProbe / startupProbe. Set one to null ({}) to disable it.
+    probes:
+      liveness:
+        httpGet:
+          path: /api/check/liveness
+          port: 8080
+        failureThreshold: 10
+        periodSeconds: 5
+        timeoutSeconds: 120
+      readiness:
+        httpGet:
+          path: /api/check/readiness
+          port: 8080
+        failureThreshold: 10
+        periodSeconds: 5
+        timeoutSeconds: 120
+      startup:
+        httpGet:
+          path: /api/check/startup
+          port: 8080
+        failureThreshold: 10
+        periodSeconds: 5
+        timeoutSeconds: 120
     # Additional trusted issuers registered in the controlplane, in addition to the
     # built-in issuerservice DID (edc.iam.trusted-issuer.issuer.id). Each entry is
     # rendered as edc.iam.trusted-issuer.<name>.id. The name is the EDC alias — it must
@@ -647,6 +721,30 @@ edc:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Kubernetes probes, rendered verbatim as the container's livenessProbe /
+    # readinessProbe / startupProbe. Set one to null ({}) to disable it.
+    probes:
+      liveness:
+        httpGet:
+          path: /api/check/liveness
+          port: 7080
+        failureThreshold: 10
+        periodSeconds: 5
+        timeoutSeconds: 120
+      readiness:
+        httpGet:
+          path: /api/check/readiness
+          port: 7080
+        failureThreshold: 10
+        periodSeconds: 5
+        timeoutSeconds: 120
+      startup:
+        httpGet:
+          path: /api/check/startup
+          port: 7080
+        failureThreshold: 10
+        periodSeconds: 5
+        timeoutSeconds: 120
     # Scope mappings rendered into the ih-config ConfigMap as
     # edc.identityhub.scope.<name>.{pattern,leftoperand,operator,rightoperand} keys.
     # Empty by default; override (typically in an extension) to add scopes, e.g.:
@@ -670,6 +768,30 @@ edc:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Kubernetes probes, rendered verbatim as the container's livenessProbe /
+    # readinessProbe / startupProbe. Set one to null ({}) to disable it.
+    probes:
+      liveness:
+        httpGet:
+          path: /api/check/liveness
+          port: 10010
+        failureThreshold: 10
+        periodSeconds: 5
+        timeoutSeconds: 120
+      readiness:
+        httpGet:
+          path: /api/check/readiness
+          port: 10010
+        failureThreshold: 10
+        periodSeconds: 5
+        timeoutSeconds: 120
+      startup:
+        httpGet:
+          path: /api/check/startup
+          port: 10010
+        failureThreshold: 10
+        periodSeconds: 5
+        timeoutSeconds: 120
     # DCP issuance API (web.http.issuance, container port 10012). Exposed without
     # jwt-auth — holders authenticate with their own DCP token, validated in-app.
     issuance:
@@ -746,6 +868,25 @@ edc:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Kubernetes probes, rendered verbatim as the container's livenessProbe /
+    # readinessProbe. Set one to null ({}) to disable it.
+    probes:
+      liveness:
+        httpGet:
+          path: /health
+          port: http
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 3
+      readiness:
+        httpGet:
+          path: /health
+          port: http
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        timeoutSeconds: 3
+        failureThreshold: 3
     # Transfer types written into siglet.toml as [[transfer_types]] blocks.
     # Override this list to change/add transfer profiles per deployment.
     transferTypes:
