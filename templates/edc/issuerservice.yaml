@@ -66,27 +66,18 @@ spec:
             {{- if and .Values.nats.enabled .Values.nats.auth.enabled }}
             {{- include "cpd.natsNkeyMount" . | nindent 12 }}
             {{- end }}
+          {{- with $c.probes.liveness }}
           livenessProbe:
-            httpGet:
-              path: /api/check/liveness
-              port: 10010
-            failureThreshold: 10
-            periodSeconds: 5
-            timeoutSeconds: 120
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $c.probes.readiness }}
           readinessProbe:
-            httpGet:
-              path: /api/check/readiness
-              port: 10010
-            failureThreshold: 10
-            periodSeconds: 5
-            timeoutSeconds: 120
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $c.probes.startup }}
           startupProbe:
-            httpGet:
-              path: /api/check/startup
-              port: 10010
-            failureThreshold: 10
-            periodSeconds: 5
-            timeoutSeconds: 120
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with $c.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

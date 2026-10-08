@@ -55,13 +55,10 @@ spec:
           ports:
             - containerPort: 8200
               name: http
+          {{- with .Values.vault.probes.readiness }}
           readinessProbe:
-            httpGet:
-              path: /v1/sys/health
-              port: 8200
-              scheme: {{ .Values.vault.connection.scheme | upper }}
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
       restartPolicy: Always
 ---
 apiVersion: v1

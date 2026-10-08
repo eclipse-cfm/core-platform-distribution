@@ -53,27 +53,18 @@ spec:
               name: protocol-port
             - containerPort: 1044
               name: debug-port
+          {{- with $c.probes.liveness }}
           livenessProbe:
-            httpGet:
-              path: /api/check/liveness
-              port: 8080
-            failureThreshold: 10
-            periodSeconds: 5
-            timeoutSeconds: 120
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $c.probes.readiness }}
           readinessProbe:
-            httpGet:
-              path: /api/check/readiness
-              port: 8080
-            failureThreshold: 10
-            periodSeconds: 5
-            timeoutSeconds: 120
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $c.probes.startup }}
           startupProbe:
-            httpGet:
-              path: /api/check/startup
-              port: 8080
-            failureThreshold: 10
-            periodSeconds: 5
-            timeoutSeconds: 120
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with $c.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
