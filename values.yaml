@@ -277,6 +277,13 @@ telemetry:
     enabled: true
     image: jaegertracing/all-in-one:1.62.0 # 1.62.0: latest has UI theming issues
     host: jaeger.localhost
+    maxTraces: 10000
+    goMemoryLimit: 768MiB
+    resources:
+      requests:
+        memory: 256Mi
+      limits:
+        memory: 1Gi
   prometheus:
     enabled: true
     image: prom/prometheus:v3.2.1

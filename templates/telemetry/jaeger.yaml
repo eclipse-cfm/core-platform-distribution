@@ -29,6 +29,17 @@ spec:
         - name: jaeger
           image: {{ $c.image }}
           imagePullPolicy: {{ .Values.telemetry.imagePullPolicy }}
+          args:
+            - {{ printf "--memory.max-traces=%v" $c.maxTraces | quote }}
+          {{- with $c.goMemoryLimit }}
+          env:
+            - name: GOMEMLIMIT
+              value: {{ . | quote }}
+          {{- end }}
+          {{- with $c.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - containerPort: 16686
               protocol: TCP
