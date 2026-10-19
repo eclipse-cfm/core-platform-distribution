@@ -83,13 +83,15 @@ spec:
               }
               EOF
 
-              # Allow participants access to transit keys prefixed with their context ID
+              # Allow participants access to transit keys prefixed with their context ID. IdentityHub names them
+              # participant_<participantContextId>_<privateKeyAlias>; the trailing separator keeps the policy of one
+              # participant from matching the keys of another participant whose ID starts with the same characters.
               cat <<EOF | vault policy write participant-transit-policy - || { echo "Failed to write participant transit policy"; exit 1; }
-              path "transit/keys/participant_{{ "{{" }}identity.entity.aliases.${ACCESSOR}.name{{ "}}" }}*" {
+              path "transit/keys/participant_{{ "{{" }}identity.entity.aliases.${ACCESSOR}.name{{ "}}" }}_*" {
                   capabilities = ["read", "create", "update", "delete", "list"]
               }
 
-              path "transit/sign/participant_{{ "{{" }}identity.entity.aliases.${ACCESSOR}.name{{ "}}" }}*" {
+              path "transit/sign/participant_{{ "{{" }}identity.entity.aliases.${ACCESSOR}.name{{ "}}" }}_*" {
                   capabilities = ["create", "update"]
               }
               EOF
