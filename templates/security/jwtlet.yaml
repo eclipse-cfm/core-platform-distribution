@@ -54,6 +54,7 @@ spec:
             add:
               - IPC_LOCK
         args:
+          - "vault"
           - "agent"
           - "-config=/vault/config/agent.hcl"
           - "-log-level=info"

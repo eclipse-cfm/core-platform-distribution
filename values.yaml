@@ -143,7 +143,7 @@ vault:
   enabled: true
   # Official vault image, run in dev mode by the in-chart template. Pinned to a full
   # upstream ref so global.imageRegistry never rewrites it.
-  image: hashicorp/vault:latest
+  image: hashicorp/vault:2.1.2
   imagePullPolicy: IfNotPresent
   connection:
     host: ""
@@ -584,7 +584,7 @@ security:
     image:
       repo: eclipse-cfm/jwtlet
       tag: 0.0.2
-    vaultAgentImage: hashicorp/vault:latest
+    vaultAgentImage: hashicorp/vault:2.1.2
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -620,7 +620,7 @@ edc:
     authEnabled: true
     image:
       repo: eclipse-cfm/platform-images/controlplane
-      tag: 0.0.1-rc.6
+      tag: 0.0.1-rc.7
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -723,7 +723,7 @@ edc:
       host: ""
     image:
       repo: eclipse-cfm/platform-images/identity-hub
-      tag: 0.0.1-rc.6
+      tag: 0.0.1-rc.7
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -770,7 +770,7 @@ edc:
       # there is a published issuerservice image in eclipse-cfm/platform-images, but it does NOT contain all the specific
       # code we need for our credentials here. Therefore, we build our own image in JAD
       repo: eclipse-cfm/platform-images/issuerservice
-      tag: 0.0.1-rc.6
+      tag: 0.0.1-rc.7
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -918,17 +918,17 @@ cfm:
     enabled: true
     containers:
       jwtletAgent:
-        image: { repo: eclipse-cfm/cfm/jwtletagent, tag: 0.0.4 }
+        image: { repo: eclipse-cfm/cfm/jwtletagent, tag: 0.0.5 }
       edcvAgent:
-        image: { repo: eclipse-cfm/cfm/edcvagent, tag: 0.0.4 }
+        image: { repo: eclipse-cfm/cfm/edcvagent, tag: 0.0.5 }
       ihAgent:
-        image: { repo: eclipse-cfm/cfm/ihagent, tag: 0.0.4 }
+        image: { repo: eclipse-cfm/cfm/ihagent, tag: 0.0.5 }
       registrationAgent:
-        image: { repo: eclipse-cfm/cfm/regagent, tag: 0.0.4 }
+        image: { repo: eclipse-cfm/cfm/regagent, tag: 0.0.5 }
       onboardingAgent:
-        image: { repo: eclipse-cfm/cfm/obagent, tag: 0.0.4 }
+        image: { repo: eclipse-cfm/cfm/obagent, tag: 0.0.5 }
       sigletAgent:
-        image: { repo: eclipse-cfm/cfm/sigletagent, tag: 0.0.4 }
+        image: { repo: eclipse-cfm/cfm/sigletagent, tag: 0.0.5 }
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -958,7 +958,7 @@ cfm:
     enabled: true
     image:
       repo: eclipse-cfm/cfm/keymanagementagent
-      tag: 0.0.4
+      tag: 0.0.5
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -970,7 +970,7 @@ cfm:
     configMapName: pm-config
     image:
       repo: eclipse-cfm/cfm/pmanager
-      tag: 0.0.4
+      tag: 0.0.5
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -982,7 +982,7 @@ cfm:
     configMapName: tm-config
     image:
       repo: eclipse-cfm/cfm/tmanager
-      tag: 0.0.4
+      tag: 0.0.5
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -1009,7 +1009,7 @@ seedJobs:
   images:
     postgres: postgres:17.7-alpine
     natsBox: natsio/nats-box:latest
-    vault: hashicorp/vault:latest
+    vault: hashicorp/vault:2.1.2
     curl: curlimages/curl:latest
   vaultBootstrap:
     enabled: true
