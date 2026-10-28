@@ -56,6 +56,9 @@ data:
   edc.datasource.default.url: {{ printf "jdbc:postgresql://%s:%v/controlplane" (include "cpd.pgHost" .) .Values.postgresql.connection.port | quote }}
   edc.datasource.default.user: "cp"
   edc.datasource.default.password: "cp"
+  {{- with include "cpd.datasourcePool" (dict "name" "default" "pool" (.Values.edc.controlplane.datasource).pool) | trim }}
+  {{- . | nindent 2 }}
+  {{- end }}
   edc.sql.schema.autocreate: "true"
 
   edc.encryption.aes.key.alias: "aes-key-alias"

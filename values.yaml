@@ -625,6 +625,19 @@ edc:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Connection pool of the controlplane's datasource, rendered as
+    # edc.datasource.<name>.pool.connections.{max-total,max-idle,min-idle}. Unset values are not rendered, so EDC's
+    # defaults apply (max-total 8, max-idle 4, min-idle 1).
+    #
+    # A connection is held for a whole transaction, and an incoming protocol request runs in one transaction (for a
+    # catalog request: token validation and policy evaluation included), so maxTotal also caps the protocol requests
+    # handled at the same time. Raise it for multi-tenant load, and keep maxTotal x replicas, summed over all the
+    # runtimes, below postgresql's max_connections.
+    datasource:
+      pool:
+        maxTotal: null
+        maxIdle: null
+        minIdle: null
     # Kubernetes probes, rendered verbatim as the container's livenessProbe /
     # readinessProbe / startupProbe. Set one to null ({}) to disable it.
     probes:
@@ -728,6 +741,19 @@ edc:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Connection pool of the identity hub's datasource, rendered as
+    # edc.datasource.<name>.pool.connections.{max-total,max-idle,min-idle}. Unset values are not rendered, so EDC's
+    # defaults apply (max-total 8, max-idle 4, min-idle 1).
+    #
+    # A connection is held for a whole transaction, and an incoming protocol request runs in one transaction (for a
+    # catalog request: token validation and policy evaluation included), so maxTotal also caps the protocol requests
+    # handled at the same time. Raise it for multi-tenant load, and keep maxTotal x replicas, summed over all the
+    # runtimes, below postgresql's max_connections.
+    datasource:
+      pool:
+        maxTotal: null
+        maxIdle: null
+        minIdle: null
     # Kubernetes probes, rendered verbatim as the container's livenessProbe /
     # readinessProbe / startupProbe. Set one to null ({}) to disable it.
     probes:
@@ -775,6 +801,19 @@ edc:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Connection pool of the issuer service's datasources (default and membership), rendered as
+    # edc.datasource.<name>.pool.connections.{max-total,max-idle,min-idle}. Unset values are not rendered, so EDC's
+    # defaults apply (max-total 8, max-idle 4, min-idle 1).
+    #
+    # A connection is held for a whole transaction, and an incoming protocol request runs in one transaction (for a
+    # catalog request: token validation and policy evaluation included), so maxTotal also caps the protocol requests
+    # handled at the same time. Raise it for multi-tenant load, and keep maxTotal x replicas, summed over all the
+    # runtimes, below postgresql's max_connections.
+    datasource:
+      pool:
+        maxTotal: null
+        maxIdle: null
+        minIdle: null
     # Kubernetes probes, rendered verbatim as the container's livenessProbe /
     # readinessProbe / startupProbe. Set one to null ({}) to disable it.
     probes:

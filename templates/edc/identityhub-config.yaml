@@ -46,6 +46,9 @@ data:
   edc.datasource.default.url: {{ printf "jdbc:postgresql://%s:%v/identityhub" (include "cpd.pgHost" .) .Values.postgresql.connection.port | quote }}
   edc.datasource.default.user: "ih"
   edc.datasource.default.password: "ih"
+  {{- with include "cpd.datasourcePool" (dict "name" "default" "pool" (.Values.edc.identityhub.datasource).pool) | trim }}
+  {{- . | nindent 2 }}
+  {{- end }}
   edc.sql.schema.autocreate: "true"
   edc.iam.accesstoken.jti.validation: "true"
   # grace period for credential expiry, 3600*24 = 1 day

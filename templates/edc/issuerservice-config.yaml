@@ -57,6 +57,9 @@ data:
   edc.datasource.default.url: {{ printf "jdbc:postgresql://%s:%v/issuerservice" (include "cpd.pgHost" .) .Values.postgresql.connection.port | quote }}
   edc.datasource.default.user: "issuer"
   edc.datasource.default.password: "issuer"
+  {{- with include "cpd.datasourcePool" (dict "name" "default" "pool" (.Values.edc.issuerservice.datasource).pool) | trim }}
+  {{- . | nindent 2 }}
+  {{- end }}
   edc.sql.schema.autocreate: "true"
   edc.iam.accesstoken.jti.validation: "true"
 
@@ -75,6 +78,9 @@ data:
   edc.datasource.membership.url: {{ printf "jdbc:postgresql://%s:%v/issuerservice" (include "cpd.pgHost" .) .Values.postgresql.connection.port | quote }}
   edc.datasource.membership.user: "issuer"
   edc.datasource.membership.password: "issuer"
+  {{- with include "cpd.datasourcePool" (dict "name" "membership" "pool" (.Values.edc.issuerservice.datasource).pool) | trim }}
+  {{- . | nindent 2 }}
+  {{- end }}
 
   # NATS config for events
   edc.events.nats.url: {{ include "cpd.natsUrl" . | quote }}

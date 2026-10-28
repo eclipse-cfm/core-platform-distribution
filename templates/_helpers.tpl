@@ -353,3 +353,20 @@ platform: edcv
     name: telemetry-config
 {{- end -}}
 {{- end -}}
+
+{{/* -------------------------------------------------------------------------
+     Connection pool settings of an EDC datasource, rendered only when set.
+     Usage: {{- with include "cpd.datasourcePool" (dict "name" "default" "pool" $c.datasource.pool) | trim }}{{ . | nindent 2 }}{{ end }}
+     ------------------------------------------------------------------------- */}}
+{{- define "cpd.datasourcePool" -}}
+{{- $pool := .pool | default dict -}}
+{{- if $pool.maxTotal }}
+edc.datasource.{{ .name }}.pool.connections.max-total: {{ $pool.maxTotal | quote }}
+{{- end }}
+{{- if $pool.maxIdle }}
+edc.datasource.{{ .name }}.pool.connections.max-idle: {{ $pool.maxIdle | quote }}
+{{- end }}
+{{- if $pool.minIdle }}
+edc.datasource.{{ .name }}.pool.connections.min-idle: {{ $pool.minIdle | quote }}
+{{- end }}
+{{- end -}}
