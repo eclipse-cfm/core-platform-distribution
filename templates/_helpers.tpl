@@ -370,3 +370,17 @@ edc.datasource.{{ .name }}.pool.connections.max-idle: {{ $pool.maxIdle | quote }
 edc.datasource.{{ .name }}.pool.connections.min-idle: {{ $pool.minIdle | quote }}
 {{- end }}
 {{- end -}}
+
+{{/* -------------------------------------------------------------------------
+     Limits of the EDC HTTP client for asynchronous requests, rendered only when set.
+     Usage: {{- with include "cpd.httpClient" $c.httpClient | trim }}{{ . | nindent 2 }}{{ end }}
+     ------------------------------------------------------------------------- */}}
+{{- define "cpd.httpClient" -}}
+{{- $client := . | default dict -}}
+{{- if $client.maxRequests }}
+edc.http.client.max.requests: {{ $client.maxRequests | quote }}
+{{- end }}
+{{- if $client.maxRequestsPerHost }}
+edc.http.client.max.requests.per.host: {{ $client.maxRequestsPerHost | quote }}
+{{- end }}
+{{- end -}}

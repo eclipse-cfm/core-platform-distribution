@@ -32,6 +32,9 @@ data:
   web.http.protocol.port: "8082"
   web.http.protocol.path: {{ .Values.edc.controlplane.protocol.path | quote }}
   web.http.protocol.virtual: "true"
+  {{- with include "cpd.httpClient" .Values.edc.controlplane.httpClient | trim }}
+  {{- . | nindent 2 }}
+  {{- end }}
   # Address counterparties are told to call back on. Without this, EDC derives
   # "http://<edc.hostname>:8082/api/dsp/%s" — an in-cluster FQDN no external
   # counterparty can reach. The trailing "%s" is the participantContextId

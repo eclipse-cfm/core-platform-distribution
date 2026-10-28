@@ -638,6 +638,17 @@ edc:
         maxTotal: null
         maxIdle: null
         minIdle: null
+    # Limits of the controlplane's HTTP client for asynchronous requests, which carry the DSP messages (catalog,
+    # negotiation and transfer), rendered as edc.http.client.max.requests / edc.http.client.max.requests.per.host.
+    # Unset values are not rendered, so the defaults apply (64 in total, 5 per host); further requests are queued.
+    #
+    # The host is the counter-party runtime's DSP endpoint, not the participant: all the participants it hosts share
+    # the per-host limit, and so do all the participants hosted here. Raise maxRequestsPerHost for multi-tenant load,
+    # keep maxRequests at or above it. Needs a controlplane image with the edc.http.client.max.requests* settings;
+    # older images ignore them.
+    httpClient:
+      maxRequests: null
+      maxRequestsPerHost: null
     # Kubernetes probes, rendered verbatim as the container's livenessProbe /
     # readinessProbe / startupProbe. Set one to null ({}) to disable it.
     probes:
