@@ -14,6 +14,8 @@ data:
 
   edc.hostname: {{ include "cpd.fqdn" (dict "svc" "issuerservice" "ctx" $) | quote }}
   edc.issuer.statuslist.signing.key.alias: "statuslist-signing-key"
+  # DCP profile of the issuer: the format of the credential definitions and the kind of status list
+  edc.issuer.dcp.profile: {{ $c.dcpProfile | default "vc20-bssl/jwt" | quote }}
   edc.ih.api.superuser.key: "c3VwZXItdXNlcg==.c3VwZXItc2VjcmV0LWtleQo="
   edc.iam.did.web.use.https: "false"
   # Web config

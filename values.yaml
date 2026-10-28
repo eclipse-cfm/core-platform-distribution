@@ -620,7 +620,7 @@ edc:
     authEnabled: true
     image:
       repo: eclipse-cfm/platform-images/controlplane
-      tag: 0.0.1-rc.7
+      tag: 0.0.1-rc.9
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -723,7 +723,7 @@ edc:
       host: ""
     image:
       repo: eclipse-cfm/platform-images/identity-hub
-      tag: 0.0.1-rc.7
+      tag: 0.0.1-rc.9
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -770,7 +770,7 @@ edc:
       # there is a published issuerservice image in eclipse-cfm/platform-images, but it does NOT contain all the specific
       # code we need for our credentials here. Therefore, we build our own image in JAD
       repo: eclipse-cfm/platform-images/issuerservice
-      tag: 0.0.1-rc.7
+      tag: 0.0.1-rc.9
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -799,6 +799,11 @@ edc:
         failureThreshold: 10
         periodSeconds: 5
         timeoutSeconds: 120
+    # DCP profile of the issuer (edc.issuer.dcp.profile): `vc20-bssl/jwt` (VCDM 2.0, Bitstring Status List)
+    # or `vc11-sl2021/jwt` (VCDM 1.1, StatusList2021). Credential definitions created through the Admin API
+    # get the format of this profile, whatever format the request names, so it MUST match the format the
+    # dataspace profile's credentialSpecs request; a holder rejects credentials in a format it did not ask for.
+    dcpProfile: vc20-bssl/jwt
     # DCP issuance API (web.http.issuance, container port 10012). Exposed without
     # jwt-auth — holders authenticate with their own DCP token, validated in-app.
     issuance:
