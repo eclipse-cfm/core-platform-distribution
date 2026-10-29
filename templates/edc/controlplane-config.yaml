@@ -54,6 +54,12 @@ data:
   edc.nats.tp.subscriber.url: {{ include "cpd.natsUrl" . | quote }}
   edc.nats.tp.subscriber.consumer.autocreate: "true"
   edc.nats.tp.publisher.url: {{ include "cpd.natsUrl" . | quote }}
+  {{- with include "cpd.natsSubscriber" (dict "prefix" "cn" "values" ((.Values.edc.controlplane.stateMachines).negotiation)) | trim }}
+  {{- . | nindent 2 }}
+  {{- end }}
+  {{- with include "cpd.natsSubscriber" (dict "prefix" "tp" "values" ((.Values.edc.controlplane.stateMachines).transfer)) | trim }}
+  {{- . | nindent 2 }}
+  {{- end }}
 
   # datasource config
   edc.datasource.default.url: {{ printf "jdbc:postgresql://%s:%v/controlplane" (include "cpd.pgHost" .) .Values.postgresql.connection.port | quote }}

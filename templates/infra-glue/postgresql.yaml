@@ -34,6 +34,9 @@ spec:
         - name: postgresql
           image: {{ .Values.postgresql.image }}
           imagePullPolicy: {{ .Values.postgresql.imagePullPolicy }}
+          {{- with .Values.postgresql.maxConnections }}
+          args: ["-c", "max_connections={{ int . }}"]
+          {{- end }}
           env:
             - name: POSTGRES_USER
               value: {{ .Values.postgresql.connection.adminUser | quote }}
