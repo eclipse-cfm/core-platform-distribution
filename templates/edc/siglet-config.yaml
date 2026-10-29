@@ -27,6 +27,23 @@ data:
     [storage_backend]
     type = "postgres-vault"
     url = "postgresql://siglet:siglet@{{ include "cpd.pgHost" . }}:{{ .Values.postgresql.connection.port }}/sigletdb"
+    {{- with (.Values.edc.siglet.storage).pool }}
+    {{- if not (kindIs "invalid" .maxConnections) }}
+    max_connections = {{ int .maxConnections }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .minConnections) }}
+    min_connections = {{ int .minConnections }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .acquireTimeoutSeconds) }}
+    acquire_timeout_seconds = {{ int .acquireTimeoutSeconds }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .idleTimeoutSeconds) }}
+    idle_timeout_seconds = {{ int .idleTimeoutSeconds }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .maxLifetimeSeconds) }}
+    max_lifetime_seconds = {{ int .maxLifetimeSeconds }}
+    {{- end }}
+    {{- end }}
     {{- range .Values.edc.siglet.transferTypes }}
     [[transfer_types]]
     transfer_type = "{{ .transferType }}"

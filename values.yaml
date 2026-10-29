@@ -99,6 +99,10 @@ postgresql:
   # upstream ref so global.imageRegistry never rewrites it.
   image: postgres:17.7-alpine
   imagePullPolicy: IfNotPresent
+  # Postgres' max_connections, passed as `-c max_connections=<n>`. Unset uses the Postgres default (100). It must cover
+  # the connection pools of every runtime using this server: edc.*.datasource.pool.maxTotal (x replicas, per
+  # datasource), 2 x edc.siglet.storage.pool.maxConnections, and the CFM components.
+  maxConnections: null
   connection:
     host: ""
     port: 5432
@@ -649,6 +653,19 @@ edc:
     httpClient:
       maxRequests: null
       maxRequestsPerHost: null
+    # Worker pools of the NATS task-based state machines, rendered as edc.nats.cn.subscriber.{workers,prefetch}
+    # (negotiation) and edc.nats.tp.subscriber.{workers,prefetch} (transfer). Unset values are not rendered, so EDC's
+    # defaults apply: 1 worker, prefetch 10, i.e. the steps of all negotiations (or transfers) run one after another.
+    #
+    # A worker holds a database connection while it waits for its remote call (DSP message, data plane signaling), so
+    # the workers of both state machines must fit in datasource.pool.maxTotal, next to the connections the APIs need.
+    stateMachines:
+      negotiation:
+        workers: null
+        prefetch: null
+      transfer:
+        workers: null
+        prefetch: null
     # Kubernetes probes, rendered verbatim as the container's livenessProbe /
     # readinessProbe / startupProbe. Set one to null ({}) to disable it.
     probes:
@@ -925,11 +942,25 @@ edc:
       allowHttp: false
     image:
       repo: eclipse-dataplane-core/dsdk-facet-rs/siglet
-      tag: 0.1.5
+      tag: 0.1.6
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Postgres connection pools of the siglet, rendered into [storage_backend] of siglet.toml. Unset values are not
+    # rendered, so the siglet's defaults apply: maxConnections 10, minConnections 0, acquireTimeoutSeconds 30,
+    # idleTimeoutSeconds 600, maxLifetimeSeconds 1800 (0 disables the idle timeout / max lifetime).
+    #
+    # The siglet opens two pools with these settings (the data plane SDK's and its token stores'), so up to
+    # 2 x maxConnections connections. Concurrent transfer starts wait for a connection, so raise maxConnections for
+    # load, and keep the sum over all runtimes below postgresql.maxConnections.
+    storage:
+      pool:
+        maxConnections: null
+        minConnections: null
+        acquireTimeoutSeconds: null
+        idleTimeoutSeconds: null
+        maxLifetimeSeconds: null
     # Kubernetes probes, rendered verbatim as the container's livenessProbe /
     # readinessProbe. Set one to null ({}) to disable it.
     probes:

@@ -384,3 +384,17 @@ edc.http.client.max.requests: {{ $client.maxRequests | quote }}
 edc.http.client.max.requests.per.host: {{ $client.maxRequestsPerHost | quote }}
 {{- end }}
 {{- end -}}
+
+{{/* -------------------------------------------------------------------------
+     Worker pool of a NATS task-based state machine subscriber, rendered only when set.
+     Usage: {{- with include "cpd.natsSubscriber" (dict "prefix" "cn" "values" $c.stateMachines.negotiation) | trim }}{{ . | nindent 2 }}{{ end }}
+     ------------------------------------------------------------------------- */}}
+{{- define "cpd.natsSubscriber" -}}
+{{- $values := .values | default dict -}}
+{{- if $values.workers }}
+edc.nats.{{ .prefix }}.subscriber.workers: {{ $values.workers | quote }}
+{{- end }}
+{{- if $values.prefetch }}
+edc.nats.{{ .prefix }}.subscriber.prefetch: {{ $values.prefetch | quote }}
+{{- end }}
+{{- end -}}
