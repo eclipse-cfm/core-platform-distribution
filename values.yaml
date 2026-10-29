@@ -653,6 +653,15 @@ edc:
     httpClient:
       maxRequests: null
       maxRequestsPerHost: null
+    # Cache of resolved DID documents, rendered as edc.did.resolver.cache.size / edc.did.resolver.cache.expiry (ms).
+    # All the participants hosted here share it, and a miss resolves the counter-party's DID over HTTP while the
+    # incoming protocol request waits, so size must cover the DIDs of all active counter-parties. EDC's default of
+    # 50 entries thrashes once a runtime talks to more than ~50 participants. An unset expiry is not rendered, so
+    # EDC's default applies (5 minutes).
+    didResolver:
+      cache:
+        size: 1000
+        expiry: null
     # Worker pools of the NATS task-based state machines, rendered as edc.nats.cn.subscriber.{workers,prefetch}
     # (negotiation) and edc.nats.tp.subscriber.{workers,prefetch} (transfer). Unset values are not rendered, so EDC's
     # defaults apply: 1 worker, prefetch 10, i.e. the steps of all negotiations (or transfers) run one after another.

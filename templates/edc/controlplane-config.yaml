@@ -25,6 +25,14 @@ data:
   edc.participant.id: "did:web:connector"
   edc.iam.did.web.use.https: "false"
   edc.iam.credential.revocation.mimetype: "application/json"
+  {{- with ((.Values.edc.controlplane.didResolver).cache) }}
+  {{- if not (kindIs "invalid" .size) }}
+  edc.did.resolver.cache.size: {{ int .size | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" .expiry) }}
+  edc.did.resolver.cache.expiry: {{ int64 .expiry | quote }}
+  {{- end }}
+  {{- end }}
 
   # web config
   web.http.port: "8080"
