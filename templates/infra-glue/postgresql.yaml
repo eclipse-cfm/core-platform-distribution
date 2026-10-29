@@ -19,6 +19,18 @@ metadata:
     {{- include "cpd.labels" . | nindent 4 }}
 spec:
   replicas: 1
+  {{- if .Values.postgresql.persistence.enabled }}
+  # Recreate, not RollingUpdate: two PostgreSQL servers must never share one data directory. A rolling update starts
+  # the new pod before stopping the old one, and on a single node both can mount the RWO PVC, which corrupts the data
+  # directory ("could not locate a valid checkpoint record").
+  # The explicit rollingUpdate:null clears the server-defaulted rollingUpdate parameters on
+  # upgrade under Helm's classic three-way merge; under server-side apply a pre-existing
+  # Deployment needs a one-time manual patch instead (SSA cannot remove fields it never owned):
+  #   kubectl patch deploy <name> -p '{"spec":{"strategy":{"type":"Recreate","rollingUpdate":null}}}'
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+  {{- end }}
   selector:
     matchLabels:
       app: {{ $name }}
