@@ -699,6 +699,16 @@ edc:
         failureThreshold: 10
         periodSeconds: 5
         timeoutSeconds: 120
+    # Container lifecycle hooks, rendered verbatim as the container's lifecycle. The default preStop delay keeps
+    # the pod serving while Kubernetes removes it from the Service endpoints, which happens asynchronously after the
+    # pod is marked for deletion: without it, the runtime shuts down while requests still arrive (e.g. DSP messages
+    # from other replicas during a rolling update or scale-down) and they fail. Keep it well below the pod's
+    # terminationGracePeriodSeconds (30 s by default), which also has to cover the runtime's own shutdown. Set it to
+    # null ({}) to disable it.
+    lifecycle:
+      preStop:
+        exec:
+          command: ["sh", "-c", "sleep 10"]
     # Additional trusted issuers registered in the controlplane, in addition to the
     # built-in issuerservice DID (edc.iam.trusted-issuer.issuer.id). Each entry is
     # rendered as edc.iam.trusted-issuer.<name>.id. The name is the EDC alias — it must
@@ -815,6 +825,16 @@ edc:
         failureThreshold: 10
         periodSeconds: 5
         timeoutSeconds: 120
+    # Container lifecycle hooks, rendered verbatim as the container's lifecycle. The default preStop delay keeps
+    # the pod serving while Kubernetes removes it from the Service endpoints, which happens asynchronously after the
+    # pod is marked for deletion: without it, the runtime shuts down while requests still arrive (e.g. DSP messages
+    # from other replicas during a rolling update or scale-down) and they fail. Keep it well below the pod's
+    # terminationGracePeriodSeconds (30 s by default), which also has to cover the runtime's own shutdown. Set it to
+    # null ({}) to disable it.
+    lifecycle:
+      preStop:
+        exec:
+          command: ["sh", "-c", "sleep 10"]
     # Scope mappings rendered into the ih-config ConfigMap as
     # edc.identityhub.scope.<name>.{pattern,leftoperand,operator,rightoperand} keys.
     # Empty by default; override (typically in an extension) to add scopes, e.g.:
@@ -875,6 +895,16 @@ edc:
         failureThreshold: 10
         periodSeconds: 5
         timeoutSeconds: 120
+    # Container lifecycle hooks, rendered verbatim as the container's lifecycle. The default preStop delay keeps
+    # the pod serving while Kubernetes removes it from the Service endpoints, which happens asynchronously after the
+    # pod is marked for deletion: without it, the runtime shuts down while requests still arrive (e.g. DSP messages
+    # from other replicas during a rolling update or scale-down) and they fail. Keep it well below the pod's
+    # terminationGracePeriodSeconds (30 s by default), which also has to cover the runtime's own shutdown. Set it to
+    # null ({}) to disable it.
+    lifecycle:
+      preStop:
+        exec:
+          command: ["sh", "-c", "sleep 10"]
     # DCP profile of the issuer (edc.issuer.dcp.profile): `vc20-bssl/jwt` (VCDM 2.0, Bitstring Status List)
     # or `vc11-sl2021/jwt` (VCDM 1.1, StatusList2021). Credential definitions created through the Admin API
     # get the format of this profile, whatever format the request names, so it MUST match the format the
