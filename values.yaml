@@ -980,8 +980,8 @@ edc:
     refreshEndpointPolicy:
       allowHttp: false
     image:
-      repo: eclipse-dataplane-core/dsdk-facet-rs/siglet
-      tag: 0.1.6
+      repo: ghcr.io/eclipse-dataplane-core/siglet
+      tag: 0.1.7
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
