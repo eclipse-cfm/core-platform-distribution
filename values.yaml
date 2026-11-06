@@ -511,7 +511,8 @@ security:
 
         # --- CFM Tenant Manager + Provision Manager (both rewrite to /api/v1alpha1;
         # disambiguated by resource name; POST .../query endpoints are READs) ---
-        # Tenant Manager: tenants, cells, dataspace-profiles, participant-profiles
+        # Tenant Manager: tenants, cells, dataspace-profiles, participant-profiles. Cells and
+        # dataspace profiles are shared by all tenants, so changing them needs the admin scope.
         - path: /api/v1alpha1/tenants/query
           methods: [POST]
           anyOf: [tenant-manager-api:read]
@@ -532,13 +533,13 @@ security:
           anyOf: [tenant-manager-api:read]
         - path: /api/v1alpha1/cells/**
           methods: [POST, PATCH, DELETE]
-          anyOf: [tenant-manager-api:write]
+          anyOf: [tenant-manager-api:admin]
         - path: /api/v1alpha1/dataspace-profiles/**
           methods: [GET]
           anyOf: [tenant-manager-api:read]
         - path: /api/v1alpha1/dataspace-profiles/**
           methods: [POST, PATCH, DELETE]
-          anyOf: [tenant-manager-api:write]
+          anyOf: [tenant-manager-api:admin]
         - path: /api/v1alpha1/participant-profiles/query
           methods: [POST]
           anyOf: [tenant-manager-api:read]
@@ -548,7 +549,8 @@ security:
         - path: /api/v1alpha1/participant-profiles/**
           methods: [POST, PATCH, DELETE]
           anyOf: [tenant-manager-api:write]
-        # Provision Manager: activity-definitions, orchestration-definitions, orchestrations
+        # Provision Manager: activity-definitions, orchestration-definitions, orchestrations.
+        # Changing definitions needs the admin scope.
         - path: /api/v1alpha1/orchestrations/query
           methods: [POST]
           anyOf: [provision-manager-api:read]
@@ -563,13 +565,13 @@ security:
           anyOf: [provision-manager-api:read]
         - path: /api/v1alpha1/activity-definitions/**
           methods: [POST, DELETE]
-          anyOf: [provision-manager-api:write]
+          anyOf: [provision-manager-api:admin]
         - path: /api/v1alpha1/orchestration-definitions/**
           methods: [GET]
           anyOf: [provision-manager-api:read]
         - path: /api/v1alpha1/orchestration-definitions/**
           methods: [POST, DELETE]
-          anyOf: [provision-manager-api:write]
+          anyOf: [provision-manager-api:admin]
 
         # --- Siglet (backend prefix stripped: /api/siglet/... -> /...; middleware
         # historically required siglet-api:read while enforcement and jwtlet seeding

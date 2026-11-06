@@ -107,7 +107,7 @@ spec:
                 -d '{
                     "clientIdentifier": "system:serviceaccount:{{ include "cpd.namespace" . }}:redline",
                     "participantContext": "redline",
-                    "scopes": ["read","write", "cfm-read","cfm-write", "admin", "provision-manager-api:read", "provision-manager-api:write", "tenant-manager-api:read", "tenant-manager-api:write", "siglet-token", "siglet-token:admin"],
+                    "scopes": ["read","write", "cfm-read","cfm-write", "admin", "provision-manager-api:read", "provision-manager-api:write", "provision-manager-api:admin", "tenant-manager-api:read", "tenant-manager-api:write", "tenant-manager-api:admin", "siglet-token", "siglet-token:admin"],
                     "audiences": ["{{ .Values.global.tokenExchangeAudience }}"]
                 }'
               if [ "$RESP_STATUS" -eq 409 ]; then
@@ -205,8 +205,10 @@ spec:
                   {"scope": "management-api:transfers:write", "claims": {"scope": "management-api:transfers:write"}},
                   {"scope": "provision-manager-api:read", "claims": {"scope": "provision-manager-api:read"}},
                   {"scope": "provision-manager-api:write", "claims": {"scope": "provision-manager-api:write"}},
+                  {"scope": "provision-manager-api:admin", "claims": {"scope": "provision-manager-api:admin"}},
                   {"scope": "tenant-manager-api:read", "claims": {"scope": "tenant-manager-api:read"}},
                   {"scope": "tenant-manager-api:write", "claims": {"scope": "tenant-manager-api:write"}},
+                  {"scope": "tenant-manager-api:admin", "claims": {"scope": "tenant-manager-api:admin"}},
                   {"scope": "siglet-mgmt-api:read", "claims": {"scope": "siglet-mgmt-api:read"}},
                   {"scope": "siglet-mgmt-api:write", "claims": {"scope": "siglet-mgmt-api:write"}},
                   {
@@ -224,7 +226,7 @@ spec:
                   {
                     "scope": "cfm-write",
                     "claims": {
-                      "scope": "provision-manager-api:write tenant-manager-api:write"
+                      "scope": "provision-manager-api:write tenant-manager-api:write provision-manager-api:admin tenant-manager-api:admin"
                     }
                   },
                   {
@@ -276,7 +278,7 @@ spec:
                 echo "ERROR: Failed to create scope mappings (HTTP $RESP_STATUS): $RESP_BODY"
                 exit 1
               fi
-              echo "✓ scope mappings created (54 direct mappings + roles: read, write, cfm-read, cfm-write, siglet-read, siglet-write, admin)"
+              echo "✓ scope mappings created (56 direct mappings + roles: read, write, cfm-read, cfm-write, siglet-read, siglet-write, admin)"
 
               echo ""
               echo "================================================"
