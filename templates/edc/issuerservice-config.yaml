@@ -60,6 +60,9 @@ data:
   {{- with include "cpd.datasourcePool" (dict "name" "default" "pool" (.Values.edc.issuerservice.datasource).pool) | trim }}
   {{- . | nindent 2 }}
   {{- end }}
+  {{- with include "cpd.httpClient" .Values.edc.issuerservice.httpClient | trim }}
+  {{- . | nindent 2 }}
+  {{- end }}
   edc.sql.schema.autocreate: "true"
   edc.iam.accesstoken.jti.validation: "true"
 
