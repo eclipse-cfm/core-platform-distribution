@@ -790,6 +790,17 @@ edc:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Limits of the identity hub's HTTP client for asynchronous requests, rendered as edc.http.client.max.requests /
+    # edc.http.client.max.requests.per.host. Unset values are not rendered, so the defaults apply (64 in total, 5 per
+    # host); further requests are queued.
+    #
+    # The identity hub sends the credential requests of all the participants it hosts asynchronously, so the per-host
+    # limit caps the credential requests in flight to one issuer. Raise maxRequestsPerHost when many participants
+    # request credentials from the same issuer, keep maxRequests at or above it. Needs an identity hub image that sends
+    # credential requests asynchronously; older images ignore these settings for them.
+    httpClient:
+      maxRequests: null
+      maxRequestsPerHost: null
     # Connection pool of the identity hub's datasource, rendered as
     # edc.datasource.<name>.pool.connections.{max-total,max-idle,min-idle}. Unset values are not rendered, so EDC's
     # defaults apply (max-total 8, max-idle 4, min-idle 1).
@@ -860,6 +871,17 @@ edc:
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
     resources: {}
+    # Limits of the issuer service's HTTP client for asynchronous requests, rendered as edc.http.client.max.requests /
+    # edc.http.client.max.requests.per.host. Unset values are not rendered, so the defaults apply (64 in total, 5 per
+    # host); further requests are queued.
+    #
+    # The issuer service delivers credentials and rejections asynchronously, so the per-host limit caps the deliveries
+    # in flight to one holder's credential service, e.g. a multi-tenant identity hub hosting all the holders. Raise
+    # maxRequestsPerHost for such a setup, keep maxRequests at or above it. Needs an issuer service image that delivers
+    # asynchronously; older images ignore these settings for deliveries.
+    httpClient:
+      maxRequests: null
+      maxRequestsPerHost: null
     # Connection pool of the issuer service's datasources (default and membership), rendered as
     # edc.datasource.<name>.pool.connections.{max-total,max-idle,min-idle}. Unset values are not rendered, so EDC's
     # defaults apply (max-total 8, max-idle 4, min-idle 1).

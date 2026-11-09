@@ -49,6 +49,9 @@ data:
   {{- with include "cpd.datasourcePool" (dict "name" "default" "pool" (.Values.edc.identityhub.datasource).pool) | trim }}
   {{- . | nindent 2 }}
   {{- end }}
+  {{- with include "cpd.httpClient" .Values.edc.identityhub.httpClient | trim }}
+  {{- . | nindent 2 }}
+  {{- end }}
   edc.sql.schema.autocreate: "true"
   edc.iam.accesstoken.jti.validation: "true"
   # grace period for credential expiry, 3600*24 = 1 day
