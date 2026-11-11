@@ -1067,17 +1067,17 @@ cfm:
     enabled: true
     containers:
       jwtletAgent:
-        image: { repo: eclipse-cfm/cfm/jwtletagent, tag: 0.0.5 }
+        image: { repo: eclipse-cfm/cfm/jwtletagent, tag: 0.0.8 }
       edcvAgent:
-        image: { repo: eclipse-cfm/cfm/edcvagent, tag: 0.0.5 }
+        image: { repo: eclipse-cfm/cfm/edcvagent, tag: 0.0.8 }
       ihAgent:
-        image: { repo: eclipse-cfm/cfm/ihagent, tag: 0.0.5 }
+        image: { repo: eclipse-cfm/cfm/ihagent, tag: 0.0.8 }
       registrationAgent:
-        image: { repo: eclipse-cfm/cfm/regagent, tag: 0.0.5 }
+        image: { repo: eclipse-cfm/cfm/regagent, tag: 0.0.8 }
       onboardingAgent:
-        image: { repo: eclipse-cfm/cfm/obagent, tag: 0.0.5 }
+        image: { repo: eclipse-cfm/cfm/obagent, tag: 0.0.8 }
       sigletAgent:
-        image: { repo: eclipse-cfm/cfm/sigletagent, tag: 0.0.5 }
+        image: { repo: eclipse-cfm/cfm/sigletagent, tag: 0.0.8 }
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -1107,7 +1107,7 @@ cfm:
     enabled: true
     image:
       repo: eclipse-cfm/cfm/keymanagementagent
-      tag: 0.0.5
+      tag: 0.0.8
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -1119,7 +1119,7 @@ cfm:
     configMapName: pm-config
     image:
       repo: eclipse-cfm/cfm/pmanager
-      tag: 0.0.5
+      tag: 0.0.8
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -1131,7 +1131,7 @@ cfm:
     configMapName: tm-config
     image:
       repo: eclipse-cfm/cfm/tmanager
-      tag: 0.0.5
+      tag: 0.0.8
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
