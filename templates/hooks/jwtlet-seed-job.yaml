@@ -141,6 +141,29 @@ spec:
               fi
               echo "✓ mapping entries created"
 
+              echo ""
+              echo "================================================"
+              echo "Step 2c: Create mapping entry for CFM agents SA"
+              echo "================================================"
+
+              # The CFM registration and onboarding agents call the issuer admin API under the issuer's own context, so they need only these scopes.
+              do_curl -X POST "${JWTLET_MGMT_URL}/mappings" \
+                -H "Authorization: Bearer ${TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d '{
+                    "clientIdentifier": "system:serviceaccount:{{ include "cpd.namespace" . }}:cfm-agents",
+                    "participantContext": "issuer",
+                    "scopes": ["issuer-admin-api:holders:write", "issuer-admin-api:credentials:read", "issuer-admin-api:credentials:write"],
+                    "audiences": ["{{ .Values.global.tokenExchangeAudience }}"]
+                }'
+              if [ "$RESP_STATUS" -eq 409 ]; then
+                echo "✓ mapping entry already exists"
+              elif [ "$RESP_STATUS" -ge 400 ]; then
+                echo "ERROR: Failed to create mapping entry (HTTP $RESP_STATUS): $RESP_BODY"
+                exit 1
+              fi
+              echo "✓ mapping entries created"
+
               echo "================================================"
               echo "Step 3: Create scope mapping entries (batch)"
               echo "================================================"
