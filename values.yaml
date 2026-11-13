@@ -626,7 +626,7 @@ edc:
     authEnabled: true
     image:
       repo: eclipse-cfm/platform-images/controlplane
-      tag: 0.0.1-rc.9
+      tag: 1.0.0-RC7
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -785,7 +785,7 @@ edc:
       host: ""
     image:
       repo: eclipse-cfm/platform-images/identity-hub
-      tag: 0.0.1-rc.9
+      tag: 1.0.0-RC7
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
@@ -866,7 +866,7 @@ edc:
       # there is a published issuerservice image in eclipse-cfm/platform-images, but it does NOT contain all the specific
       # code we need for our credentials here. Therefore, we build our own image in JAD
       repo: eclipse-cfm/platform-images/issuerservice
-      tag: 0.0.1-rc.9
+      tag: 1.0.0-RC7
     replicas: 1
     # imagePullPolicy overrides global.imagePullPolicy for this component (empty = use global)
     imagePullPolicy: ""
