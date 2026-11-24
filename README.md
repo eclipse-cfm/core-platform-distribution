@@ -31,6 +31,9 @@ telemetry config.
 - Helm 3.8+ (OCI support).
 - The chart pulls application images from `ghcr.io` by default (`imageRegistry`). Ensure the
   cluster can reach the registries or point the values at images you can pull.
+  The CFM Provision Manager comes from `ghcr.io/eclipse-cfm/cfm/pmanager`; the Tenant Manager and
+  the CFM agents come from `ghcr.io/eclipse-cfm/cfm-dataspace/<name>` (since CFM 0.1.0). If you
+  override `cfm.*.image.repo`, point the Tenant Manager and agent images at `eclipse-cfm/cfm-dataspace`.
 
 ## Installation
 
